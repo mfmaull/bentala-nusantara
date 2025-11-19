@@ -564,7 +564,7 @@
           const div = document.createElement('div');
           div.className = 'p-3 bg-white/20 rounded-lg border border-gray-200 dark:border-gray-600';
           const name = c.name || 'Pengunjung';
-          const email = c.email ? ` <span class="text-xs text-gray-400">(${escapeHtml(c.email)})</span>` : '';
+          const email = c.email ? ` <span class="text-xs text-gray-400"></span>` : '';
           const text = c.kritik_saran || c.text || '';
           const ts = c.createdAt ? new Date(c.createdAt).toLocaleString() : (c.timestamp || '');
           div.innerHTML = `<div class="flex items-center justify-between"><div class="font-semibold text-primary">👤 ${escapeHtml(name)}${email}</div><div class="text-xs text-gray-500">${escapeHtml(ts)}</div></div><div class="mt-2 text-gray-800 dark:text-gray-200">${escapeHtml(text)}</div>`;
@@ -622,5 +622,6 @@
   </script>
 
 </body>
+
 
 </html>
