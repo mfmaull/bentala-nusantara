@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="id" class="scroll-smooth">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Bentala Nusantara | WebGIS Modern ala Gen Z</title>
+
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Maplibre via CDN -->
+  <script src="https://unpkg.com/maplibre-gl@^5.7.3/dist/maplibre-gl.js"></script>
+  <link href="https://unpkg.com/maplibre-gl@^5.7.3/dist/maplibre-gl.css" rel="stylesheet" />
+
+  <!-- Turf.js untuk operasi geometri -->
+  <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+
+  <!-- AOS -->
+  <link href=" https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet" />
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            primary: '#FF6B6B',
+            secondary: '#4ECDC4',
+            accent: '#FFD166',
+            dark: '#1A1A2E',
+            dark2: '#16213E',
+            'heading-primary': '#0a9396'
+          },
+          fontFamily: { sans: ['Poppins', 'sans-serif'] },
+          animation: {
+            'pulse-slow': 'pulse 3s cubic-bezier(0.4,0,0.6,1) infinite',
+            'float': 'float 6s ease-in-out infinite',
+            'scale-in': 'scaleIn 0.6s ease-out'
+          },
+          keyframes: {
+            float: { '0%,100%': { transform: 'translateY(0)' }, '50%': { transform: 'translateY(-10px)' } },
+            scaleIn: { '0%': { transform: 'scale(0.8)', opacity: 0 }, '100%': { transform: 'scale(1)', opacity: 1 } }
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- Google Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+    }
+
+    .glassmorphism {
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(10px);
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      transition: transform .25s, box-shadow .25s;
+    }
+
+    .glassmorphism:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 20px 40px rgba(2, 6, 23, 0.15);
+    }
+
+    .btn-ripple {
+      position: relative;
+      overflow: hidden;
+      border-radius: 12px;
+    }
+
+    .btn-ripple::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle, rgba(255, 255, 255, 0.35) 0%, transparent 60%);
+      opacity: 0;
+      transform: scale(0);
+      transition: opacity .35s, transform .35s;
+      pointer-events: none;
+    }
+
+    .btn-ripple:hover::after {
+      opacity: 1;
+      transform: scale(3);
+    }
+
+    /* Portfolio horizontal scroll */
+    .portfolio-row {
+      display: flex;
+      gap: 1rem;
+      overflow-x: auto;
+      padding-bottom: 0.5rem;
+      scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .portfolio-card {
+      min-width: 300px;
+      max-width: 420px;
+      flex: 0 0 auto;
+      scroll-snap-align: start;
+    }
+
+    /* Explore cards */
+    .explore-grid {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .explore-card {
+      flex: 1 1 260px;
+      max-width: 360px;
+      border-radius: 14px;
+      padding: 1.25rem;
+    }
+
+    /* Toggle styling */
+    .toggle-switch {
+      width: 48px;
+      height: 26px;
+      border-radius: 999px;
+      background: #f0f0f0;
+      position: relative;
+      cursor: pointer;
+      transition: background .25s;
+    }
+
+    .toggle-switch.dark {
+      background: #2b2b2b;
+    }
+
+    .toggle-ball {
+      width: 22px;
+      height: 22px;
+      border-radius: 999px;
+      background: #fff;
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      transition: transform .25s;
+      box-shadow: 0 4px 10px rgba(2, 6, 23, 0.12);
+    }
+
+    .toggle-switch.dark .toggle-ball {
+      transform: translateX(22px);
+      background: #e6e6e6;
+    }
+
+    /* Map sizing: keep proportional and not overflowing */
+    #map-container {
+      width: 100%;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    #map {
+      width: 100%;
+      height: 720px;
+      border-radius: 12px;
+    }
+
+    @media (max-width:768px) {
+      #map {
+        height: 280px;
+      }
+
+      .portfolio-card {
+        min-width: 260px;
+      }
+    }
+
+    /* Comments: compact */
+    #comment-list {
+      max-height: 220px;
+      overflow-y: auto;
+    }
+
+    .small-input {
+      padding: .6rem .75rem;
+      border-radius: .5rem;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+    }
+
+    .hidden-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+  </style>
+</head>
+
+<body
+  class="bg-gradient-to-br from-primary via-secondary to-accent text-gray-900 dark:text-white min-h-screen relative overflow-x-hidden">
+  <!-- Header -->
+  <header class="relative z-40 p-6 shadow-lg bg-white/30 backdrop-blur-md dark:bg-black/30">
+    <div class="container mx-auto flex justify-between items-center">
+      <div class="flex items-center gap-3">
+        <svg class="w-8 h-8 text-primary" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+        </svg>
+        <h1 class="text-2xl font-extrabold tracking-tight">Bentala Nusantara</h1>
+      </div>
+
+      <nav class="hidden md:flex items-center gap-8 text-sm font-medium">
+        <a href="#home" class="hover:text-primary transition">🌍 Beranda</a>
+        <a href="#map" class="hover:text-secondary transition">🗺️ My Map</a>
+        <a href="#portfolio" class="hover:text-accent transition">📊 Portfolio</a>
+      </nav>
+
+      <div class="flex items-center gap-4">
+        <div id="theme-toggle"
+          class="p-2 rounded-full bg-gray-200 dark:bg-gray-700 transition-colors flex items-center gap-2 cursor-pointer"
+          aria-label="Toggle theme" role="button">
+          <svg id="icon-sun" class="w-5 h-5 text-yellow-400" viewBox="0 0 24 24" fill="currentColor">
+            <circle cx="12" cy="12" r="5" />
+            <path
+              d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+          </svg>
+          <svg id="icon-moon" class="w-5 h-5 text-blue-700 hidden" viewBox="0 0 24 24" fill="currentColor">
+            <path
+              d="M21.75 10.05a9.73 9.73 0 01-2.87 7.05c-1.82 1.52-4.09 2.32-6.75 2.32s-4.93-.8-6.75-2.32A9.73 9.73 0 012.25 10.05a9.73 9.73 0 012.87-7.05A9.729 9.729 0 0112 2c1.57 0 3.09.38 4.46 1.14a9.25 9.25 0 011.62.68" />
+          </svg>
+        </div>
+
+        <a href="bentala_map.html"
+          class="btn-ripple bg-primary text-white px-5 py-2 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all">
+          🔥 Mulai Ekspedisi
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero -->
+  <section id="home" class="relative z-10 px-6 py-20 text-center" data-aos="fade-up">
+    <div class="container mx-auto">
+      <h2 class="text-4xl md:text-6xl font-extrabold mb-6 leading-tight">
+        <span class="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent drop-shadow-md">Eksplorasi
+          Nusantara</span>
+        <span class="block text-dark dark:text-white">Dalam Satu Sentuhan</span>
+      </h2>
+      <p class="text-lg md:text-xl mb-10 text-gray-700 dark:text-gray-300 max-w-3xl mx-auto">Temukan data geospasial
+        terkini dengan peta interaktif modern — <em>dibuat untuk Gen Z, oleh Gen Z.</em></p>
+
+      <div class="flex flex-col sm:flex-row justify-center gap-4 mb-16">
+        <a href="#map"
+          class="btn-ripple px-8 py-4 bg-primary text-white font-semibold rounded-full shadow-lg transform hover:scale-105 transition-all">🌎
+          Lihat Peta</a>
+        <a href="#portfolio"
+          class="btn-ripple px-8 py-4 border-2 border-secondary text-secondary font-semibold rounded-full hover:bg-secondary hover:text-white transition-all">📊
+          Review Data</a>
+      </div>
+
+      <!-- Explore 3 cards -->
+      <div class="mt-8 container mx-auto">
+        <div class="explore-grid justify-center" data-aos="fade-up">
+          <div class="explore-card glassmorphism p-6 shadow-md" data-aos="zoom-in">
+            <div class="flex items-center gap-3 mb-3">
+              <div class="w-12 h-12 rounded-full flex items-center justify-center bg-primary/20 text-primary text-xl">
+                🗺️</div>
+              <h4 class="text-lg font-bold">Pemetaan Interaktif</h4>
+            </div>
+            <p class="text-sm text-gray-700 dark:text-gray-300 mb-3">Peta interaktif responsif: layer, popup, marker,
+              dan integrasi data real-time.</p>
+            <ul class="text-xs text-gray-600 dark:text-gray-400 list-disc pl-5 space-y-1">
+              <li>Layer kustom & toggle</li>
+              <li>Interaksi marker & popup</li>
+              <li>Ekspor peta sederhana</li>
+            </ul>
+          </div>
+
+          <div class="explore-card glassmorphism p-6 shadow-md" data-aos="zoom-in" data-aos-delay="120">
+            <div class="flex items-center gap-3 mb-3">
+              <div
+                class="w-12 h-12 rounded-full flex items-center justify-center bg-secondary/20 text-secondary text-xl">
+                📚</div>
+              <h4 class="text-lg font-bold">Database Geospasial</h4>
+            </div>
+            <p class="text-sm text-gray-700 dark:text-gray-300 mb-3">Penyimpanan GeoJSON / PostGIS-ready untuk analisis
+              & visualisasi.</p>
+            <ul class="text-xs text-gray-600 dark:text-gray-400 list-disc pl-5 space-y-1">
+              <li>Manajemen atribut</li>
+              <li>Query spasial</li>
+              <li>Integrasi multi-sumber</li>
+            </ul>
+          </div>
+
+          <div class="explore-card glassmorphism p-6 shadow-md" data-aos="zoom-in" data-aos-delay="240">
+            <div class="flex items-center gap-3 mb-3">
+              <div class="w-12 h-12 rounded-full flex items-center justify-center bg-accent/20 text-accent text-xl">⚙️
+              </div>
+              <h4 class="text-lg font-bold">Geoprocessing Online System</h4>
+            </div>
+            <p class="text-sm text-gray-700 dark:text-gray-300 mb-3">Operasi spasial on-demand: buffering, clipping,
+              hotspot analysis, agregasi.</p>
+            <ul class="text-xs text-gray-600 dark:text-gray-400 list-disc pl-5 space-y-1">
+              <li>Turf.js processing</li>
+              <li>Batch processing</li>
+              <li>API untuk otomatisasi</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MAP (preview) - ensure full inside red-box area equivalent -->
+  <section id="map-canvas" class="px-6 py-12 bg-white dark:bg-dark" data-aos="fade-up">
+    <div class="container mx-auto text-center">
+      <h3 class="text-3xl md:text-4xl font-bold mb-2">🗺️ My Map (Preview)</h3>
+      <p class="text-md text-gray-600 dark:text-gray-400 max-w-2xl mx-auto mb-6">Preview peta sederhana. Klik "Mulai
+        Ekspedisi" untuk peta penuh.</p>
+
+      <div id="map-container" class="relative">
+        <div id="map" class="rounded-lg shadow-inner"></div>
+        <div id="map-fallback" class="absolute inset-0 items-center justify-center text-gray-500 text-lg hidden">
+          🗺️ Peta tidak dapat dimuat. Periksa koneksi atau API key.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PORTFOLIO SECTION (in-page scrollable cards) -->
+  <section id="portfolio" class="px-6 py-20 bg-dark2" data-aos="fade-up">
+    <div class="container mx-auto text-center">
+      <h3 class="text-3xl md:text-4xl font-bold mb-4 text-white">📊 Portfolio</h3>
+      <p class="text-lg text-gray-300 max-w-2xl mx-auto mb-8">Proyek dan visualisasi data geospasial yang pernah dibuat
+        oleh tim Bentala Nusantara.</p>
+
+      <div class="portfolio-row px-2 py-4 hidden-scrollbar" aria-label="Daftar portfolio">
+        <!-- Card: New CineMAX -->
+        <div
+          class="portfolio-card bg-white/10 backdrop-blur-md p-6 rounded-xl border border-white/20 glassmorphism shadow-md"
+          data-aos="fade-up">
+          <img src="./assets/portfolio/New CineMAX.png" alt="New CineMAX"
+            class="w-full h-44 object-cover rounded-md mb-4" />
+          <h4 class="text-xl font-bold mb-2 text-white ">Location Analytics for New CineMAX</h4>
+          <p class="text-gray-300 mb-3">Rekomendasi lokasi pembangunan CineMax berdasarkan analisis sosial-ekonomi,
+            kepadatan, dan mobilitas.</p>
+          <a href="./assets/portfolio/New CineMAX.pdf" target="_blank"
+            class="inline-block text-sm bg-primary text-white px-4 py-2 rounded-md">Detail (PDF)</a>
+        </div>
+
+        <!-- Card: Shelter Evakuasi Gempa -->
+        <div
+          class="portfolio-card bg-white/10 backdrop-blur-md p-6 rounded-xl border border-white/20 glassmorphism shadow-md"
+          data-aos="fade-up" data-aos-delay="80">
+          <img src="./assets/portfolio/Shelter Evakuasi Gempa.png" alt="Shelter Evakuasi Gempa"
+            class="w-full h-44 object-cover rounded-md mb-4" />
+          <h4 class="text-xl font-bold mb-2 text-white">Evacuation Shelter Earthquake Analysis</h4>
+          <p class="text-gray-300 mb-3">Analisis zona aman dan rute evakuasi untuk mitigasi risiko gempa.</p>
+          <a href="./assets/portfolio/Shelter Evakuasi Gempa.pdf" target="_blank"
+            class="inline-block text-sm bg-primary text-white px-4 py-2 rounded-md">Detail (PDF)</a>
+        </div>
+
+        <!-- Card: Wonogiri Hyperlocal Analysis -->
+        <div
+          class="portfolio-card bg-white/10 backdrop-blur-md p-6 rounded-xl border border-white/20 glassmorphism shadow-md"
+          data-aos="fade-up" data-aos-delay="160">
+          <img src="./assets/portfolio/Wonogiri Hyperlocal Analysis.png" alt="Wonogiri Hyperlocal Analysis"
+            class="w-full h-44 object-cover rounded-md mb-4" />
+          <h4 class="text-xl font-bold mb-2 text-white">Hyperlocal Analysis for Trans Surakarta</h4>
+          <p class="text-gray-300 mb-3">Analisis daerah potensial untuk Halte/Terminal Trans-Surakarta menggunakan data
+            hyperlocal.</p>
+          <a href="./assets/portfolio/Wonogiri Hyperlocal Analysis.pdf" target="_blank"
+            class="inline-block text-sm bg-primary text-white px-4 py-2 rounded-md">Detail (PDF)</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- COMMENTS (bottom, compact) -->
+  <section id="comments" class="px-6 py-12 bg-white dark:bg-black/60" data-aos="fade-up">
+    <div class="container mx-auto">
+      <h3 class="text-2xl font-bold mb-4 text-center">💬 Komentar Pengguna</h3>
+
+      <div
+        class="max-w-3xl mx-auto bg-white/80 dark:bg-black/40 glassmorphism p-6 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700">
+        <!-- Compact Form -->
+        <form id="comment-form" class="flex flex-col gap-3">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <input type="text" id="comment-name" placeholder="Nama (opsional)"
+              class="small-input dark:bg-gray-700 dark:text-white" />
+            <input type="email" id="comment-email" placeholder="Email (opsional)"
+              class="small-input dark:bg-gray-700 dark:text-white" />
+          </div>
+
+          <textarea id="comment-input" placeholder="Tulis komentar..." required
+            class="small-input dark:bg-gray-700 dark:text-white" rows="3"></textarea>
+
+          <div class="flex items-center gap-3">
+            <button type="submit" class="px-5 py-2 bg-secondary text-white rounded-md">Kirim</button>
+            <div class="ml-auto flex items-center gap-2">
+              <label for="rows-per-page" class="text-sm text-gray-600 dark:text-gray-300">Rows</label>
+              <select id="rows-per-page" class="p-2 border rounded bg-white dark:bg-gray-800">
+                <option value="5">5</option>
+                <option value="10">10</option>
+                <option value="15">15</option>
+              </select>
+            </div>
+          </div>
+
+        </form>
+
+        <!-- Comment list (compact) -->
+        <div id="comment-list" class="mt-4 space-y-3"></div>
+
+        <!-- Pagination -->
+        <div id="pagination-controls" class="mt-4 flex items-center justify-center gap-2"></div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="py-6 text-center text-gray-700 dark:text-gray-400 text-sm">
+    &copy; 2025 Bentala Nusantara. Dibuat untuk generasi yang ingin memahami Nusantara.
+  </footer>
+
+  <!-- Scripts -->
+  <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+  <script>
+    AOS.init({ duration: 700, once: true });
+
+    // THEME TOGGLE
+    const themeToggle = document.getElementById('theme-toggle');
+    const htmlEl = document.documentElement;
+    const sunIcon = document.getElementById('icon-sun');
+    const moonIcon = document.getElementById('icon-moon');
+
+    function applyTheme(theme) {
+      if (theme === 'dark') {
+        htmlEl.classList.add('dark');
+        sunIcon.classList.remove('hidden');
+        moonIcon.classList.add('hidden');
+      } else {
+        htmlEl.classList.remove('dark');
+        sunIcon.classList.add('hidden');
+        moonIcon.classList.remove('hidden');
+      }
+    }
+
+    (function loadThemeOnStart() {
+      const stored = localStorage.getItem('theme');
+      if (stored === 'dark') applyTheme('dark');
+      else if (stored === 'light') applyTheme('light');
+      else {
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) { applyTheme('dark'); localStorage.setItem('theme', 'dark'); }
+        else { applyTheme('light'); localStorage.setItem('theme', 'light'); }
+      }
+    })();
+
+    themeToggle.addEventListener('click', () => {
+      if (htmlEl.classList.contains('dark')) { applyTheme('light'); localStorage.setItem('theme', 'light'); }
+      else { applyTheme('dark'); localStorage.setItem('theme', 'dark'); }
+    });
+
+    // Smooth anchor scrolling
+    document.querySelectorAll('a[href^="#"]').forEach(a => {
+      a.addEventListener('click', (e) => {
+        const target = a.getAttribute('href');
+        if (target && target.startsWith('#')) {
+          const el = document.querySelector(target);
+          if (el) { e.preventDefault(); el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+        }
+      });
+    });
+
+    // ---------- MAP ----------
+    const MAP_SERVICE_KEY = "68da7e8806823ed3f510cc50";
+    const DEFAULT_THEME = "basic";
+
+    document.addEventListener('DOMContentLoaded', function () {
+      initMap();
+    });
+
+    function initMap() {
+      try {
+        localStorage.setItem('test', 'test'); // Coba menulis untuk mendeteksi blokir
+        localStorage.removeItem('test'); // Hapus lagi
+      } catch (e) {
+        console.warn('LocalStorage diblokir. Menggunakan cache sementara atau tidak menyimpan data persisten.');
+        localStorageBlocked = true; // Set flag
+        window.mapCache = {}; // Alternatif penyimpanan sementara
+      }
+
+      const map = new maplibregl.Map({
+        style: `https://basemap.mapid.io/styles/${DEFAULT_THEME}/style.json?key=${MAP_SERVICE_KEY}`,
+        center: [106.82717425766694, -6.175403054116954],
+        zoom: 12,
+        pitch: 0,
+        bearing: 0,
+        container: "map",
+        canvasContextAttributes: { antialias: true },
+        attributionControl: true,
+      });
+
+      // Set bounds sesuai kotak merah
+      map.on('load', function () {
+        const bounds = [
+          [106.60, -6.05],  // Southwest corner [lng, lat]
+          [107.05, -6.30]   // Northeast corner [lng, lat]
+        ];
+        map.fitBounds(bounds, {
+          padding: 4,
+          maxZoom: 12,
+          margin: 4,
+        });
+      });
+
+      // Kontrol navigasi
+      const navControl = new maplibregl.NavigationControl();
+      map.addControl(navControl, 'top-right');
+    }
+
+    // ---------- COMMENTS (API-backed) ----------
+    const API_ENDPOINT = "https://68d145ade6c0cbeb39a42e48.mockapi.io/webgis/saran/v1/";
+    const commentForm = document.getElementById('comment-form');
+    const commentInput = document.getElementById('comment-input');
+    const nameInput = document.getElementById('comment-name');
+    const emailInput = document.getElementById('comment-email');
+    const rowsPerPageSelect = document.getElementById('rows-per-page');
+    const commentList = document.getElementById('comment-list');
+    const paginationControls = document.getElementById('pagination-controls');
+
+    let allComments = [];
+    let currentPage = 1;
+    let rowsPerPage = parseInt(rowsPerPageSelect.value || 5);
+
+    rowsPerPageSelect.addEventListener('change', () => { rowsPerPage = parseInt(rowsPerPageSelect.value); currentPage = 1; renderComments(); });
+
+    function escapeHtml(unsafe) {
+      if (!unsafe && unsafe !== 0) return '';
+      return String(unsafe).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;');
+    }
+
+    async function fetchComments() {
+      try {
+        const res = await fetch(API_ENDPOINT + "?sortBy=id&order=desc");
+        if (!res.ok) throw new Error('Network response not ok: ' + res.status);
+        const data = await res.json();
+        allComments = data;
+        renderComments();
+      } catch (err) {
+        console.error('Fetch comments failed:', err);
+        commentList.innerHTML = `<div class="text-center text-red-500 p-4">Gagal memuat komentar.</div>`;
+      }
+    }
+
+    function renderComments() {
+      const total = allComments.length;
+      const totalPages = Math.max(1, Math.ceil(total / rowsPerPage));
+      if (currentPage > totalPages) currentPage = totalPages;
+      const start = (currentPage - 1) * rowsPerPage;
+      const pageData = allComments.slice(start, start + rowsPerPage);
+
+      commentList.innerHTML = '';
+      if (!pageData.length) {
+        commentList.innerHTML = `<div class="text-center text-gray-500 p-4">Belum ada komentar.</div>`;
+      } else {
+        pageData.forEach(c => {
+          const div = document.createElement('div');
+          div.className = 'p-3 bg-white/20 rounded-lg border border-gray-200 dark:border-gray-600';
+          const name = c.name || 'Pengunjung';
+          const email = c.email ? ` <span class="text-xs text-gray-400">(${escapeHtml(c.email)})</span>` : '';
+          const text = c.kritik_saran || c.text || '';
+          const ts = c.createdAt ? new Date(c.createdAt).toLocaleString() : (c.timestamp || '');
+          div.innerHTML = `<div class="flex items-center justify-between"><div class="font-semibold text-primary">👤 ${escapeHtml(name)}${email}</div><div class="text-xs text-gray-500">${escapeHtml(ts)}</div></div><div class="mt-2 text-gray-800 dark:text-gray-200">${escapeHtml(text)}</div>`;
+          commentList.appendChild(div);
+        });
+      }
+      renderPaginationControls(totalPages);
+    }
+
+    function renderPaginationControls(totalPages) {
+      paginationControls.innerHTML = '';
+      const prev = document.createElement('button'); prev.textContent = '‹'; prev.className = 'px-2 py-1 rounded border'; prev.disabled = currentPage === 1;
+      prev.onclick = () => { if (currentPage > 1) { currentPage--; renderComments(); } };
+      paginationControls.appendChild(prev);
+
+      const startPage = Math.max(1, currentPage - 2); const endPage = Math.min(totalPages, startPage + 4);
+      for (let p = startPage; p <= endPage; p++) {
+        const btn = document.createElement('button');
+        btn.textContent = p;
+        btn.className = `px-3 py-1 rounded ${p === currentPage ? 'bg-primary text-white font-semibold' : 'hover:bg-gray-200 dark:hover:bg-gray-700'}`;
+        btn.onclick = () => { currentPage = p; renderComments(); };
+        paginationControls.appendChild(btn);
+      }
+
+      const next = document.createElement('button'); next.textContent = '›'; next.className = 'px-2 py-1 rounded border'; next.disabled = currentPage === totalPages;
+      next.onclick = () => { if (currentPage < totalPages) { currentPage++; renderComments(); } };
+      paginationControls.appendChild(next);
+    }
+
+    commentForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const text = commentInput.value.trim();
+      if (!text) return alert('Komentar tidak boleh kosong.');
+      const payload = { name: (nameInput.value.trim() || 'Pengunjung'), email: (emailInput.value.trim() || ''), kritik_saran: text };
+      const optimistic = { ...payload, createdAt: new Date().toISOString() };
+      allComments.unshift(optimistic); renderComments();
+      commentInput.value = ''; nameInput.value = ''; emailInput.value = '';
+
+      try {
+        const resp = await fetch(API_ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        if (!resp.ok) { console.error('POST failed', resp.status); alert('Gagal mengirim komentar ke server. Ditampilkan lokal.'); fetchComments(); }
+        else { fetchComments(); }
+      } catch (err) {
+        console.error('Post error', err); alert('Gagal mengirim komentar. Periksa koneksi.'); fetchComments();
+      }
+    });
+
+    // initial load
+    fetchComments();
+  </script>
+  <script>
+    // window.addEventListener("load", () => {
+    //   initMap();
+    // });
+  </script>
+
+</body>
+
+</html>

@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bentala Nusantara | GeoMaps</title>
+
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Maplibre via CDN -->
+    <script src="https://unpkg.com/maplibre-gl@^5.7.3/dist/maplibre-gl.js"></script>
+    <link href="https://unpkg.com/maplibre-gl@^5.7.3/dist/maplibre-gl.css" rel="stylesheet" />
+
+    <!-- Turf.js untuk operasi geometri -->
+    <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+</head>
+
+<body class="flex h-screen bg-gray-100">
+    <!-- Toolbox di sebelah kiri -->
+    <div id="toolbox" class="w-64 bg-white border-r border-gray-300 p-4 flex flex-col h-full shadow-lg">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-lg font-bold text-gray-800">Toolbox</h2>
+            <button id="back-btn" type="button" class="px-2 py-1 bg-gray-200 text-gray-600 hover:bg-gray-300 rounded">
+                <a href="new_index.html">Back</a>
+            </button>
+        </div>
+        <!-- Input Pencarian -->
+        <input id="search-input" type="text" placeholder="Search Subdistrict..."
+            class="px-3 py-2 border border-gray-300 rounded mb-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+
+        <!-- Tombol Reset (Kecil, Merah, Teks Putih Terang untuk Kontras) -->
+        <button id="reset-search-btn" type="button"
+            class="px-2 py-1 bg-red-500 text-red-100 text-xs font-medium rounded hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 mb-4">
+            Reset
+        </button>
+
+        <!-- Daftar Hasil Pencarian -->
+        <ul id="search-results" class="space-y-1 max-h-64 overflow-y-auto">
+            <!-- Hasil pencarian akan ditambahkan di sini -->
+        </ul>
+
+        <!-- Section Layers -->
+        <div id="layers-panel" class="mt-4">
+            <h3 class="font-bold text-gray-800 mb-2">Layers</h3>
+            <ul>
+                <li class="mb-2">
+                    <input type="checkbox" id="kepadatan-penduduk-checkbox" />
+                    <label for="kepadatan-penduduk-checkbox" class="ml-1">Population Density</label>
+                </li>
+                <li class="mb-2">
+                    <input type="checkbox" id="heatmap-checkbox" />
+                    <label for="heatmap-checkbox" class="ml-1">Heatmap</label>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Kolom Information (Baru Ditambahkan) -->
+        <div id="info-panel" class="mt-4 p-3 bg-gray-50 border border-gray-200 rounded">
+            <h3 class="font-bold text-gray-800 mb-2">Information</h3>
+            <div id="info-content" class="text-sm text-gray-700">
+                <p>Information Not Found</p>
+            </div>
+        </div>
+
+        <!-- Section Legend (Baru Ditambahkan) -->
+        <div id="legend-panel" class="mt-4 p-3 bg-white border border-gray-200 rounded shadow-sm">
+            <h3 class="font-bold text-gray-800 mb-2">Legend</h3>
+            <div id="legend-content" class="text-sm text-gray-700">
+                <p>Legenda akan muncul di sini</p>
+            </div>
+        </div>
+
+
+    </div>
+
+    <!-- Map container -->
+    <div id="map" class="flex-1 h-full"></div>
+
+    <script>
+        const MAP_SERVICE_KEY = "68da7e8806823ed3f510cc50";
+        const DEFAULT_THEME = "basic";
+
+        // Inisialisasi peta
+        let map;
+        let mapLoaded = false;
+        let localStorageBlocked = false; // Flag untuk melacak status localStorage
+
+        document.addEventListener('DOMContentLoaded', function () {
+            initMapAndFeatures();
+        });
+
+        function initMapAndFeatures() {
+            try {
+                localStorage.setItem('test', 'test'); // Coba menulis untuk mendeteksi blokir
+                localStorage.removeItem('test'); // Hapus lagi
+            } catch (e) {
+                console.warn('LocalStorage diblokir. Menggunakan cache sementara atau tidak menyimpan data persisten.');
+                localStorageBlocked = true; // Set flag
+                window.mapCache = {}; // Alternatif penyimpanan sementara
+            }
+
+            const map = new maplibregl.Map({
+                style: `https://basemap.mapid.io/styles/${DEFAULT_THEME}/style.json?key=${MAP_SERVICE_KEY}`,
+                center: [106.82717425766694, -6.175403054116954],
+                zoom: 12,
+                pitch: 0,
+                bearing: 0,
+                container: "map",
+                canvasContextAttributes: { antialias: true },
+                attributionControl: true,
+            });
+
+            // Kontrol navigasi
+            const navControl = new maplibregl.NavigationControl();
+            map.addControl(navControl, 'top-right');
+
+            let geojsonData = null;
+            let searchResultsLayer = null;
+            let highlightLayer = null;
+            let uniqueKecamatanData = {};
+            let vs30PointsLayerId = 'vs30-points';
+
+            // --- Muat GeoJSON dari API secara dinamis ---
+            fetch('https://geoserver.mapid.io/layers_new/get_layer?api_key=b79dbb1727c346dd953307ca0423d7e0&layer_id=6919aebcf7b37745d822234d&project_id=68ff9caac8804625c64612ff&limit=10000')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Kesalahan HTTP! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    geojsonData = data;
+
+                    // Proses data untuk unique kecamatan (gabungkan geometri)
+                    const kecamatanMap = {};
+                    data.features.forEach(feature => {
+                        const kecamatan = feature.properties?.KECAMATAN;
+                        if (kecamatan) {
+                            if (!kecamatanMap[kecamatan]) {
+                                kecamatanMap[kecamatan] = [];
+                            }
+                            kecamatanMap[kecamatan].push(turf.feature(feature.geometry, feature.properties));
+                        }
+                    });
+
+                    // Gabungkan geometri untuk setiap kecamatan menggunakan Turf union
+                    Object.keys(kecamatanMap).forEach(kecamatan => {
+                        if (kecamatanMap[kecamatan].length > 1) {
+                            let union = kecamatanMap[kecamatan][0];
+                            for (let i = 1; i < kecamatanMap[kecamatan].length; i++) {
+                                union = turf.union(union, kecamatanMap[kecamatan][i]);
+                            }
+                            uniqueKecamatanData[kecamatan] = turf.feature(union.geometry, {
+                                ...kecamatanMap[kecamatan][0].properties,
+                                KECAMATAN: kecamatan
+                            });
+                        } else {
+                            uniqueKecamatanData[kecamatan] = kecamatanMap[kecamatan][0];
+                        }
+                    });
+
+                    // Buat titik-titik dari centroid setiap fitur, dengan nilai vs30_avg
+                    const pointFeatures = data.features.map(feature => {
+                        const vs30 = feature.properties?.vs30_avg;
+                        if (vs30 === undefined || vs30 === null) return null;
+
+                        // Ambil centroid geometri
+                        const centroid = turf.center(feature.geometry);
+                        return turf.feature(centroid.geometry, {
+                            ...feature.properties,
+                            vs30_avg: vs30
+                        });
+                    }).filter(Boolean); // Hapus null
+
+                    // Inisialisasi peta dan tambahkan layer
+                    map.on('load', function () {
+                        // --- Layer Kepadatan Penduduk (asli) ---
+                        map.addLayer({
+                            id: 'kepadatan-penduduk',
+                            type: 'fill',
+                            source: {
+                                type: 'geojson',
+                                data: data
+                            },
+                            layout: {
+                                'visibility': 'none'
+                            },
+                            paint: {
+                                'fill-opacity': 0.5,
+                                'fill-color': [
+                                    'case',
+                                    ['<=', ['get', 'kepadatan'], 2500], '#FFFFCC',
+                                    ['<=', ['get', 'kepadatan'], 5000], '#FFEE99',
+                                    ['<=', ['get', 'kepadatan'], 10000], '#FFCC66',
+                                    ['<=', ['get', 'kepadatan'], 20000], '#FFAA33',
+                                    '#FF6600'
+                                ]
+                            }
+                        }, "park");
+
+
+                        // --- Layer Titik: vs30_avg ---
+                        map.addSource('vs30-points-source', {
+                            type: 'geojson',
+                            data: {
+                                type: 'FeatureCollection',
+                                features: pointFeatures
+                            }
+                        });
+
+                        map.addLayer({
+                            id: vs30PointsLayerId,
+                            type: 'circle',
+                            source: 'vs30-points-source',
+                            layout: {
+                                'visibility': 'none'
+                            },
+                            paint: {
+                                'circle-radius': [
+                                    'interpolate',
+                                    ['linear'],
+                                    ['get', 'vs30_avg'],
+                                    0, 2,
+                                    150, 4,
+                                    300, 6,
+                                    500, 12
+                                ],
+                                'circle-color': [
+                                    'case',
+                                    ['<=', ['get', 'vs30_avg'], 250], '#ff0000',    // Merah
+                                    ['<=', ['get', 'vs30_avg'], 300], '#ff6600',    // Oranye
+                                    ['<=', ['get', 'vs30_avg'], 350], '#ffcc00',    // Kuning
+                                    ['<=', ['get', 'vs30_avg'], 400], '#66cc00',    // Hijau terang
+                                    '#006600'                                       // Hijau tua
+                                ],
+                                'circle-opacity': 0.8,
+                                'circle-stroke-width': 1,
+                                'circle-stroke-color': '#ffffff'
+                            }
+                        });
+
+                        map.addLayer({
+                            id: 'vs30-heatmap',
+                            type: 'heatmap',
+                            source: 'vs30-points-source',
+                            maxzoom: 15,
+                            layout: {
+                                'visibility': 'none'
+                            },
+                            paint: {
+                                'heatmap-weight': [
+                                    'interpolate',
+                                    ['linear'],
+                                    ['get', 'vs30_avg'],
+                                    0, 0,
+                                    200, 0.5,
+                                    500, 1
+                                ],
+                                "heatmap-intensity": [
+                                    "interpolate",
+                                    ["linear"],
+                                    ["zoom"],
+                                    0,
+                                    0.6,
+                                    15,
+                                    2,
+                                ],
+                                'heatmap-color': [
+                                    'interpolate',
+                                    ['linear'],
+                                    ['heatmap-density'],
+                                    0, 'rgba(0, 0, 255, 0)',
+                                    0.2, 'rgb(0, 100, 200)',
+                                    0.4, 'rgb(0, 200, 200)',
+                                    0.6, 'rgb(200, 200, 0)',
+                                    0.8, 'rgb(255, 100, 0)',
+                                    1, 'rgb(255, 0, 0)'
+                                ],
+                                "heatmap-radius": [
+                                    "interpolate",
+                                    ["linear"],
+                                    ["zoom"],
+                                    0, 30,
+                                    9, 80,
+                                    15, 120,
+                                ],
+                                'heatmap-opacity': 1
+                            }
+                        }, 'park');
+
+                        // Event Listener untuk checkbox Kepadatan Penduduk
+                        const kepadatanPendudukCheckbox = document.getElementById('kepadatan-penduduk-checkbox');
+                        const heatmapCheckbox = document.getElementById('heatmap-checkbox');
+
+                        kepadatanPendudukCheckbox.addEventListener('change', function () {
+                            if (this.checked) {
+                                map.setLayoutProperty('kepadatan-penduduk', 'visibility', 'visible');
+                            } else {
+                                map.setLayoutProperty('kepadatan-penduduk', 'visibility', 'none');
+                            }
+                        });
+
+                        heatmapCheckbox.addEventListener('change', function () {
+                            if (this.checked) {
+                                map.setLayoutProperty(vs30PointsLayerId, 'visibility', 'visible'),
+                                    map.setLayoutProperty('vs30-heatmap', 'visibility', 'visible');
+                            } else {
+                                map.setLayoutProperty(vs30PointsLayerId, 'visibility', 'none'),
+                                    map.setLayoutProperty('vs30-heatmap', 'visibility', 'none');
+                            }
+                        });
+
+                        // --- Inisialisasi Pencarian ---
+                        initSearch();
+
+                        // --- Fit peta ke bounding box ---
+                        try {
+                            let bbox = null;
+                            try {
+                                // Gunakan turf untuk menghitung bbox dari seluruh geojson
+                                bbox = turf.bbox(data);
+                            } catch (e) {
+                                console.warn('turf.bbox error:', e);
+                                bbox = null;
+                            }
+
+
+                            if (bbox && Array.isArray(bbox) && bbox.length === 4) {
+                                map.fitBounds(bbox, { padding: 50 });
+                            } else {
+                                console.warn('Tidak bisa menemukan batas kota yang valid. Lewati fitBounds.');
+                            }
+                        } catch (e) {
+                            console.error('fitBounds gagal:', e);
+                        }
+
+
+                        console.log('Layers dan sources ditambahkan dengan aman.');
+
+                        // === Hubungkan Tombol Reset dengan Fungsi (Menggunakan Event Listener) ===
+                        const resetBtn = document.getElementById('reset-search-btn');
+                        if (resetBtn) {
+                            resetBtn.addEventListener('click', resetSearch);
+                            console.log('Tombol Reset berhasil dihubungkan!');
+                        } else {
+                            console.warn('Tombol Reset tidak ditemukan di DOM!');
+                        }
+
+                    });
+                })
+                .catch(error => {
+                    console.error('Kesalahan saat mengambil data GeoJSON:', error);
+                    alert('Terjadi kesalahan saat memuat data peta. Silakan coba lagi nanti.');
+                });
+
+            // Fungsi Inisialisasi Pencarian
+            function initSearch() {
+                const searchInput = document.getElementById('search-input');
+                const searchResultsList = document.getElementById('search-results');
+
+                searchInput.addEventListener('input', (e) => {
+                    const query = e.target.value.toLowerCase();
+                    searchResultsList.innerHTML = ''; // Kosongkan hasil sebelumnya
+
+                    if (query.length < 2) return;
+
+                    // Filter kecamatan berdasarkan query
+                    Object.keys(uniqueKecamatanData).forEach(kecamatan => {
+                        if (kecamatan.toLowerCase().includes(query)) {
+                            const li = document.createElement('li');
+                            li.className = 'px-2 py-1 bg-blue-100 text-blue-800 rounded cursor-pointer hover:bg-blue-200';
+                            li.textContent = kecamatan;
+                            li.addEventListener('click', () => {
+                                addHighlight(kecamatan);
+                                searchInput.value = kecamatan;
+                                searchResultsList.innerHTML = ''; // Sembunyikan daftar setelah klik
+                            });
+                            searchResultsList.appendChild(li);
+                        }
+                    });
+                });
+            }
+
+            // Fungsi Highlight Kecamatan
+            function addHighlight(kecamatan) {
+                if (highlightLayer) {
+                    map.removeLayer(highlightLayer.id);
+                    map.removeSource(highlightLayer.source);
+                }
+
+                const feature = uniqueKecamatanData[kecamatan];
+                if (!feature) return;
+
+                const highlightSourceId = 'highlight-source';
+                map.addSource(highlightSourceId, {
+                    type: 'geojson',
+                    data: feature
+                });
+
+                map.addLayer({
+                    id: 'highlight-layer',
+                    type: 'fill',
+                    source: highlightSourceId,
+                    paint: {
+                        'fill-color': '#005500',
+                        'fill-opacity': 0.3,
+                        'fill-outline-color': '#000000'
+                    }
+                }, 'park');
+
+                highlightLayer = {
+                    id: 'highlight-layer',
+                    source: highlightSourceId
+                };
+
+                // Zoom ke feature
+                const bbox = turf.bbox(feature);
+                map.fitBounds(bbox, { padding: 50 });
+
+                // Tampilkan informasi di panel
+                displayFeatureInfo(feature);
+            }
+
+            // Fungsi untuk menampilkan informasi fitur di panel
+            function displayFeatureInfo(feature) {
+                const props = feature.properties;
+                const infoContent = document.getElementById('info-content');
+
+                if (!props) {
+                    infoContent.innerHTML = '<p>Data tidak tersedia.</p>';
+                    return;
+                }
+
+                // Ambil koordinat centroid (jika ada) atau gunakan centroid dari geometri
+                let lng, lat;
+                if (props.longitude && props.latitude) {
+                    lng = props.longitude;
+                    lat = props.latitude;
+                } else {
+                    const centroid = turf.center(feature.geometry);
+                    lng = centroid.geometry.coordinates[0];
+                    lat = centroid.geometry.coordinates[1];
+                }
+
+                const kepadatan = props.kepadatan || 'N/A';
+                const vs30_avg = props.vs30_avg || 'N/A';
+
+                infoContent.innerHTML = `
+                <p><strong>Longitude:</strong> ${lng.toFixed(6)}</p>
+                <p><strong>Latitude:</strong> ${lat.toFixed(6)}</p>
+                <p><strong>Population Density:</strong> ${kepadatan}</p>
+                <p><strong>VS30 Average:</strong> ${vs30_avg}</p>
+            `;
+            }
+
+            // === Fungsi Reset Pencarian (Baru dan Berfungsi Penuh) ===
+            function resetSearch() {
+                const searchInput = document.getElementById('search-input');
+                const searchResultsList = document.getElementById('search-results');
+                const infoContent = document.getElementById('info-content');
+
+                // Kosongkan input dan hasil pencarian
+                searchInput.value = '';
+                searchResultsList.innerHTML = '';
+                infoContent.innerHTML = '<p>Information Not Found</p>';
+
+                // Hapus highlight jika ada
+                if (highlightLayer) {
+                    map.removeLayer(highlightLayer.id);
+                    map.removeSource(highlightLayer.source);
+                    highlightLayer = null;
+                }
+
+                // Opsional: Kembali ke posisi peta awal (sesuaikan koordinat jika perlu)
+                map.flyTo({ center: [106.82717425766694, -6.175403054116954], zoom: 12 });
+            }
+
+            // Fungsi untuk menampilkan legenda berdasarkan layer yang aktif
+            function updateLegend() {
+                const legendContent = document.getElementById('legend-content');
+                const densityChecked = document.getElementById('kepadatan-penduduk-checkbox').checked;
+                const heatmapChecked = document.getElementById('heatmap-checkbox').checked;
+
+                // Kosongkan legenda terlebih dahulu
+                legendContent.innerHTML = '';
+
+                // Tampilkan legenda berdasarkan checkbox yang dicentang
+                if (densityChecked) {
+                    const legendDensity = `
+            <p><strong>Population Density</strong></p>
+            <div class="flex items-center mb-1">
+                <div class="w-3 h-3 bg-white rounded-full mr-1 border border-gray-300"></div>
+                <span>Low</span>
+            </div>
+            <div class="flex items-center mb-1">
+                <div class="w-3 h-3 bg-yellow-200 rounded-full mr-1 border border-yellow-300"></div>
+                <span>Medium</span>
+            </div>
+            <div class="flex items-center mb-1">
+                <div class="w-3 h-3 bg-orange-300 rounded-full mr-1 border border-orange-400"></div>
+                <span>High</span>
+            </div>
+            <div class="flex items-center">
+                <div class="w-3 h-3 bg-red-400 rounded-full mr-1 border border-red-500"></div>
+                <span>Very High</span>
+            </div>
+        `;
+                    legendContent.innerHTML += legendDensity;
+                }
+
+                if (heatmapChecked) {
+                    const legendHeatmap = `
+            <p><strong>Heatmap Intensity</strong></p>
+            <div class="flex items-center mb-1">
+                <div class="w-3 h-3 bg-red-500 rounded-full mr-1"></div>
+                <span>vs30 ≤ 250</span>
+            </div>
+            <div class="flex items-center mb-1">
+                <div class="w-3 h-3 bg-orange-500 rounded-full mr-1"></div>
+                <span>250 < vs30 ≤ 300</span>
+            </div>
+            <div class="flex items-center mb-1">
+                <div class="w-3 h-3 bg-yellow-500 rounded-full mr-1"></div>
+                <span>300 < vs30 ≤ 350</span>
+            </div>
+            <div class="flex items-center mb-1">
+                <div class="w-3 h-3 bg-green-400 rounded-full mr-1"></div>
+                <span>350 < vs30 ≤ 400</span>
+            </div>
+            <div class="flex items-center">
+                <div class="w-3 h-3 bg-green-700 rounded-full mr-1"></div>
+                <span>vs30 > 400</span>
+            </div>           
+        `;
+                    if (densityChecked) legendContent.innerHTML += '<hr class="my-2">'; // Garis pemisah
+                    legendContent.innerHTML += legendHeatmap;
+                }
+
+                // Jika tidak ada yang dicentang, tampilkan pesan default
+                if (!densityChecked && !heatmapChecked) {
+                    legendContent.innerHTML = '<p>Layers Not Active</p>';
+                }
+            }
+
+            // Event listener untuk checkbox
+            document.getElementById('kepadatan-penduduk-checkbox').addEventListener('change', updateLegend);
+            document.getElementById('heatmap-checkbox').addEventListener('change', updateLegend);
+
+            // Jalankan updateLegend saat halaman dimuat
+            window.addEventListener('load', updateLegend);
+
+            // Event ketika peta dimuat sepenuhnya
+            map.on('load', () => {
+                console.log('Peta dimuat dengan sukses!');
+            });
+        }
+    </script>
+</body>
+
+</html>
