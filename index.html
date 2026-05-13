@@ -1,0 +1,1465 @@
+<!DOCTYPE html>
+<html lang="id" class="scroll-smooth" data-theme="light">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Bentala Nusantara | WebGIS Minimalist — Modern</title>
+
+  <!-- Tailwind (utility) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- MapLibre (kept as original) -->
+  <link href="https://unpkg.com/maplibre-gl@^5.7.3/dist/maplibre-gl.css" rel="stylesheet" />
+  <script defer src="https://unpkg.com/maplibre-gl@^5.7.3/dist/maplibre-gl.js"></script>
+
+  <!-- Turf (geoprocessing lib) -->
+  <script defer src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+
+  <!-- AOS for animations -->
+  <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet" />
+  <script defer src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+
+  <!-- Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet" />
+
+  <meta name="description" content="Bentala Nusantara — WebGIS minimalis, modern, dan compact.">
+
+  <style>
+    /* ===========================
+       PALETTE & VARIABLES (TEMA)
+       =========================== */
+    :root {
+      --bg: #ffffff;
+      --fg: #0b0b0b;
+      --krem: #f3ead7;
+      --muted: #6f6f6f;
+      --card: #fbf9f6;
+      --border: #ece7df;
+      --glass: rgba(11, 11, 11, 0.04);
+      --accent: #0b0b0b;
+      --radius: 12px;
+      --shadow-soft: 0 8px 20px rgba(11, 11, 11, 0.06);
+      --smooth: 300ms;
+    }
+
+    [data-theme="dark"] {
+      --bg: #0a0a0a;
+      --fg: #f5f5f5;
+      --krem: #322b23;
+      --muted: #bdbdbd;
+      --card: #141414;
+      --border: #222;
+      --glass: rgba(255, 255, 255, 0.03);
+      --accent: #f5f5f5;
+      --shadow-soft: 0 10px 30px rgba(0, 0, 0, 0.6);
+    }
+
+    /* ===========================
+       BASE STYLES
+       =========================== */
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+      font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      background: var(--bg);
+      color: var(--fg);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none
+    }
+
+    .container {
+      max-width: 1200px;
+      margin-left: auto;
+      margin-right: auto;
+      padding-left: 1rem;
+      padding-right: 1rem
+    }
+
+    /* ===========================
+       HEADER
+       =========================== */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 60;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.65), rgba(255, 255, 255, 0.45));
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(6px);
+      transition: background var(--smooth), border-color var(--smooth);
+    }
+
+    [data-theme="dark"] header {
+      background: linear-gradient(180deg, rgba(10, 10, 10, 0.8), rgba(10, 10, 10, 0.7));
+    }
+
+    header .logo {
+      display: flex;
+      gap: .6rem;
+      align-items: center
+    }
+
+    header .logo .mark {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--border);
+      background: linear-gradient(180deg, var(--card), #fff);
+      box-shadow: var(--shadow-soft)
+    }
+
+    header .title {
+      font-weight: 700;
+      font-size: 1rem
+    }
+
+    header .subtitle {
+      font-size: .75rem;
+      color: var(--muted)
+    }
+
+    /* ===========================
+       BUTTONS
+       =========================== */
+    .btn-primary {
+      background: var(--accent);
+      color: var(--bg);
+      padding: .5rem .9rem;
+      border-radius: 999px;
+      font-weight: 600;
+      display: inline-flex;
+      gap: .5rem;
+      align-items: center;
+      box-shadow: 0 6px 18px rgba(11, 11, 11, 0.06);
+      transition: transform .18s ease, box-shadow .18s ease;
+      border: 1px solid rgba(0, 0, 0, 0.04)
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-3px)
+    }
+
+    .btn-outline {
+      background: transparent;
+      color: var(--fg);
+      padding: .46rem .8rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      font-weight: 600
+    }
+
+    /* ===========================
+       GLASS CARD
+       =========================== */
+    .glass {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-soft);
+      transition: transform var(--smooth), box-shadow var(--smooth), border-color var(--smooth)
+    }
+
+    .glass:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 14px 40px rgba(11, 11, 11, 0.08)
+    }
+
+    /* ===========================
+       UTILITY CLASSES
+       =========================== */
+    .muted {
+      color: var(--muted)
+    }
+
+    .small-input {
+      padding: .6rem .8rem;
+      border-radius: .5rem;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--fg);
+      width: 100%
+    }
+
+    .small-input:focus {
+      outline: none;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06)
+    }
+
+    /* ===========================
+       HERO SECTION
+       =========================== */
+    .hero {
+      padding: 3.5rem 0 2rem 0;
+      text-align: center
+    }
+
+    .hero h1 {
+      font-size: 2.2rem;
+      margin: 0;
+      line-height: 1.05;
+      font-weight: 800
+    }
+
+    .hero p {
+      margin-top: .6rem;
+      color: var(--muted)
+    }
+
+    /* ===========================
+       EXPLORE CARDS
+       =========================== */
+    .explore-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem
+    }
+
+    .explore-item {
+      padding: 1.1rem;
+      border-radius: 10px
+    }
+
+    /* ===========================
+       MAP CONTAINER
+       =========================== */
+    #map-container {
+      width: 100%;
+      max-width: 1200px;
+      margin: 0 auto
+    }
+
+    #map {
+      width: 100%;
+      height: 720px;
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1px solid var(--border)
+    }
+
+    /* ===========================
+       PORTFOLIO SCROLLER
+       =========================== */
+    .portfolio-row {
+      display: flex;
+      gap: 1rem;
+      overflow-x: auto;
+      padding-bottom: .5rem;
+      -webkit-overflow-scrolling: touch
+    }
+
+    .portfolio-card {
+      min-width: 300px;
+      max-width: 420px;
+      flex: 0 0 auto;
+      border-radius: 12px;
+      overflow: hidden
+    }
+
+    .portfolio-card img {
+      width: 100%;
+      height: 176px;
+      object-fit: cover;
+      display: block;
+    }
+
+    /* ===========================
+       COMMENTS
+       =========================== */
+    #comment-list .comment {
+      padding: .8rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--card)
+    }
+
+    .pagination button {
+      padding: .35rem .6rem;
+      border-radius: 6px;
+      border: 1px solid var(--border)
+    }
+
+    /* ===========================
+       BOTTOM NAV (MOBILE)
+       =========================== */
+    .bottom-nav {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 12px;
+      z-index: 80;
+      display: flex;
+      justify-content: center;
+    }
+
+    .bottom-nav-inner {
+      display: flex;
+      gap: 8px;
+      background: var(--card);
+      border-radius: 30px;
+      padding: 8px;
+      border: 1px solid var(--border);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+    }
+
+    .bottom-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: .45rem .6rem;
+      border-radius: 10px;
+      font-size: .85rem;
+      color: var(--muted)
+    }
+
+    .bottom-item.active {
+      color: var(--accent);
+      font-weight: 700
+    }
+
+    /* ===========================
+       RESPONSIVE (MOBILE)
+       =========================== */
+    @media (max-width: 768px) {
+      .hero {
+        padding: 1.6rem 0;
+      }
+
+      .hero h1 {
+        font-size: 1.4rem
+      }
+
+      .explore-grid {
+        grid-template-columns: 1fr;
+        gap: .8rem
+      }
+
+      #map {
+        height: 320px;
+        border-radius: 12px
+      }
+
+      .portfolio-row {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: .8rem;
+        overflow: visible
+      }
+
+      header .nav {
+        display: none
+      }
+
+      .container {
+        padding-left: .75rem;
+        padding-right: .75rem
+      }
+
+      .bottom-nav {
+        display: block
+      }
+
+      .glass:hover {
+        transform: none;
+        box-shadow: var(--shadow-soft)
+      }
+    }
+
+    /* ===========================
+       REDUCED MOTION
+       =========================== */
+    @media (prefers-reduced-motion: reduce) {
+      * {
+        transition: none !important;
+        animation: none !important
+      }
+    }
+
+    /* ===========================
+       ENTRANCE ANIMATIONS
+       =========================== */
+    .fade-up {
+      transform: translateY(8px);
+      opacity: 0;
+      transition: transform .55s cubic-bezier(.2, .9, .2, 1), opacity .55s;
+    }
+
+    .fade-up.in {
+      transform: none;
+      opacity: 1;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    /* ===========================
+       MAP LOADING OVERLAY
+       =========================== */
+    #map-loading {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      background: var(--card);
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      z-index: 50;
+      transition: opacity .4s ease;
+    }
+
+    .loading-spinner {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      border: 4px solid var(--border);
+      border-top-color: var(--accent);
+      animation: spin 0.9s linear infinite;
+    }
+
+    .loading-text {
+      font-size: .9rem;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    /* ===========================
+       SHIMMER SKELETON
+       =========================== */
+    .shimmer {
+      width: 80%;
+      height: 14px;
+      border-radius: 6px;
+      background: linear-gradient(90deg,
+          rgba(255, 255, 255, 0) 0%,
+          rgba(0, 0, 0, 0.06) 50%,
+          rgba(255, 255, 255, 0) 100%);
+      background-size: 200% 100%;
+      animation: shimmer 1.6s infinite;
+    }
+
+    @keyframes shimmer {
+      0% {
+        background-position: -200% 0;
+      }
+
+      100% {
+        background-position: 200% 0;
+      }
+    }
+
+    /* ===========================
+       WEATHER CARD
+       =========================== */
+    .weather-card {
+      background: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      padding: 16px;
+      margin-top: 16px;
+      border: 1px solid #e5e7eb;
+    }
+
+    .temp {
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: #1e40af;
+    }
+
+    .desc {
+      font-size: 1.1rem;
+      color: #4b5563;
+      margin-top: 8px;
+    }
+
+    .refresh-btn {
+      background: #6f6f6f;
+      color: white;
+      padding: 8px 16px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      font-size: 0.9rem;
+      margin-top: 16px;
+    }
+
+    .refresh-btn:hover {
+      background: #6f6f6f;
+    }
+
+    #quake-panel {
+      margin-top: 1rem;
+    }
+
+    /* ===========================
+       SHAKEMAP BUTTON (MIRIP "LIHAT CUACA")
+       =========================== */
+    .shakemap-btn {
+      background: black;
+      color: white;
+      padding: 0.6rem 1.4rem;
+      border-radius: 8px;
+      font-weight: 600;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+      transition: background 0.2s ease;
+      border: none;
+      cursor: pointer;
+    }
+    .shakemap-btn:hover {
+      background: #1f2937;
+    }
+
+    /* ===========================
+       SHAKEMAP CONTAINER (DI BAWAH TOMBOL) - TENGAH
+       =========================== */
+    #shakemap-container {
+      margin-top: 1rem;
+      text-align: center;
+    }
+    #shakemap-img {
+      display: block;
+      margin: 0 auto;
+      max-width: 100%;
+      height: auto;
+      border-radius: 10px;
+      box-shadow: var(--shadow-soft);
+      border: 1px solid var(--border);
+    }
+    #shakemap-source {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-top: 0.5rem;
+    }
+
+    #weather-location {
+      font-size: 0.9rem;
+      margin-bottom: 0.5rem;
+    }
+
+    /* ===========================
+       PERTAHANKAN WARNA HITAM PADA POPUP
+       =========================== */
+    .maplibregl-popup-content {
+      color: #000000 !important;
+      background: #ffffff !important;
+      box-shadow: none !important;
+    }
+    /* Panel info gempa akan mengikuti tema secara otomatis */
+  </style>
+</head>
+
+<body>
+  <!-- ===========================
+       HEADER
+       =========================== -->
+  <header>
+    <div class="container flex items-center justify-between py-3">
+      <div class="logo">
+        <div class="mark" aria-hidden="true">📍</div>
+        <div>
+          <div class="title">Bentala Nusantara</div>
+          <div class="subtitle muted">WebGIS • Minimalist • Modern</div>
+        </div>
+      </div>
+
+      <nav class="nav hidden md:flex items-center gap-6">
+        <a href="#home" class="muted">Beranda</a>
+        <a href="#map-canvas" class="muted">My Map</a>
+        <a href="#portfolio" class="muted">Portfolio</a>
+      </nav>
+
+      <div class="flex items-center gap-3">
+        <button id="theme-toggle" class="glass px-3 py-1 text-sm" title="Toggle theme">Dark</button>
+        <a href="map.html" class="btn-primary">🔥 Mulai Ekspedisi</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- ===========================
+       HERO SECTION
+       =========================== -->
+  <section id="home" class="hero container" data-aos="fade-up">
+    <h1>Eksplorasi Nusantara</h1>
+    <p class="muted">Temukan data geospasial terkini dengan peta interaktif masa kini</p>
+    <div class="mt-4 flex justify-center gap-3 hero-actions">
+      <a href="#map-canvas" id="btn-scroll-map" class="btn-primary">🌎 Lihat Peta</a>
+      <a href="#portfolio" class="btn-outline">📁 Portfolio</a>
+    </div>
+  </section>
+
+  <!-- ===========================
+       EXPLORE CARDS
+       =========================== -->
+  <section class="container mb-6" aria-hidden="false">
+    <div class="explore-grid" data-aos="fade-up" data-aos-delay="120">
+      <div class="glass explore-item">
+        <div class="flex items-center gap-3 mb-3">
+          <div class="w-10 h-10 rounded-full flex items-center justify-center" style="background:var(--krem)">🗺️</div>
+          <div class="font-semibold">Pemetaan Interaktif</div>
+        </div>
+        <p class="muted text-sm">Layer, popup, marker, dan integrasi data real-time.</p>
+      </div>
+      <div class="glass explore-item">
+        <div class="flex items-center gap-3 mb-3">
+          <div class="w-10 h-10 rounded-full flex items-center justify-center" style="background:var(--krem)">📚</div>
+          <div class="font-semibold">Database Geospasial</div>
+        </div>
+        <p class="muted text-sm">GeoJSON / PostGIS-ready untuk analisis & visualisasi.</p>
+      </div>
+      <div class="glass explore-item">
+        <div class="flex items-center gap-3 mb-3">
+          <div class="w-10 h-10 rounded-full flex items-center justify-center" style="background:var(--krem)">⚙️</div>
+          <div class="font-semibold">Geoprocessing Online</div>
+        </div>
+        <p class="muted text-sm">Buffering, clipping, hotspot analysis via Turf.js.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===========================
+       WEATHER MODAL
+       =========================== -->
+  <div id="weather-modal" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6 transform transition-all scale-95">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-2xl font-bold text-gray-800">🌤️ Cuaca Realtime</h2>
+      </div>
+      <div id="weather-location" class="text-sm text-gray-500 mb-2">📍 Mendeteksi lokasi...</div>
+      <div class="weather-card flex items-center mb-4">
+        <img id="weather-icon" src="" alt="Weather Icon" class="w-16 h-16 mr-4">
+        <div>
+          <div class="temp font-bold text-2xl" id="temperature">--°C</div>
+          <div class="desc text-gray-600" id="description">--</div>
+        </div>
+      </div>
+      <div class="text-sm text-gray-500 mb-4">
+        <span id="last-updated">Belum diperbarui</span>
+      </div>
+      <div class="flex gap-2">
+        <button id="refresh-weather"
+          class="flex-1 bg-black text-white py-2 rounded font-medium hover:bg-gray-700 transition">
+          Perbarui Sekarang
+        </button>
+        <button id="close-weather-modal-btn"
+          class="flex-1 bg-gray-300 text-gray-700 py-2 rounded font-medium hover:bg-gray-400 transition">
+          Tutup
+        </button>
+      </div>
+      <div class="mt-6 text-xs text-gray-500 text-center">
+        <p><small>API: OpenWeatherMap</small></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tombol Lihat Cuaca -->
+  <div class="text-center mt-4">
+    <button id="open-weather-modal"
+      class="bg-black text-white px-6 py-2 rounded-lg shadow hover:bg-gray-700 transition font-medium">
+      🌤️ Lihat Cuaca Realtime
+    </button>
+  </div>
+
+  <!-- ===========================
+       MAP SECTION
+       =========================== -->
+  <section id="map-canvas" class="py-6">
+    <div class="container text-center mb-4" data-aos="fade-up">
+      <h3 class="text-lg font-semibold">🗺️ My Map (Preview)</h3>
+      <p class="muted">Preview peta sederhana. Klik "Mulai Ekspedisi" untuk peta penuh.</p>
+    </div>
+
+    <div class="container" id="map-container">
+      <div id="map" class="glass relative" role="region" aria-label="Peta preview">
+        <div id="map-loading">
+          <div class="loading-spinner"></div>
+          <div class="loading-text">Loading Map…</div>
+          <div class="shimmer"></div>
+        </div>
+      </div>
+      <div id="map-fallback" class="hidden text-center muted mt-4">
+        🗺️ Peta tidak dapat dimuat. Periksa koneksi atau refresh halaman.
+      </div>
+
+      <!-- Panel Informasi Gempa -->
+      <div id="quake-panel" class="glass p-4 mt-3 hidden">
+        <div id="quake-loading" class="text-center muted">Memuat data gempa terkini...</div>
+        <div id="quake-content" class="hidden"></div>
+      </div>
+    </div>
+
+    <!-- TOMBOL SHAKEMAP (DI BAWAH PETA) -->
+    <div class="container text-center mt-4">
+      <button id="toggle-shakemap-btn" class="shakemap-btn">
+        🗺️ Tampilkan Shakemap
+      </button>
+    </div>
+
+    <!-- KONTAINER SHAKEMAP (DI BAWAH TOMBOL) -->
+    <div class="container text-center" id="shakemap-container" style="display: none;">
+      <img id="shakemap-img" src="" alt="Shakemap BMKG" style="max-height: 500px;">
+      <div id="shakemap-source" class="muted">
+        Sumber: Badan Meteorologi, Klimatologi, dan Geofisika (BMKG)
+      </div>
+    </div>
+  </section>
+
+  <!-- ===========================
+       PORTFOLIO SECTION
+       =========================== -->
+  <section id="portfolio" class="py-8 border-t">
+    <div class="container text-center mb-4" data-aos="fade-up">
+      <h3 class="text-xl font-semibold">Portfolio</h3>
+      <p class="muted">Proyek & visualisasi geospasial oleh Bentala Nusantara</p>
+    </div>
+    <div class="container portfolio-row" data-aos="fade-up" data-aos-delay="120" id="portfolio-list">
+      <article class="portfolio-card glass p-4">
+        <img loading="lazy" decoding="async" src="./assets/portfolio/New CineMAX.png" alt="New CineMAX" />
+        <div class="mt-3">
+          <div class="font-semibold">Location Analytics for New CineMAX</div>
+          <div class="muted text-sm mb-2">Rekomendasi lokasi berdasarkan analisis mobilitas & kepadatan.</div>
+          <a href="./assets/portfolio/New CineMAX.pdf" target="_blank" class="btn-outline inline-block">Detail (PDF)</a>
+        </div>
+      </article>
+      <article class="portfolio-card glass p-4">
+        <img loading="lazy" decoding="async" src="./assets/portfolio/Shelter Evakuasi Gempa.png"
+          alt="Shelter Evakuasi Gempa" />
+        <div class="mt-3">
+          <div class="font-semibold">Evacuation Shelter Earthquake Analysis</div>
+          <div class="muted text-sm mb-2">Analisis zona aman & rute evakuasi.</div>
+          <a href="./assets/portfolio/Shelter Evakuasi Gempa.pdf" target="_blank"
+            class="btn-outline inline-block">Detail (PDF)</a>
+        </div>
+      </article>
+      <article class="portfolio-card glass p-4">
+        <img loading="lazy" decoding="async" src="./assets/portfolio/Wonogiri Hyperlocal Analysis.png"
+          alt="Wonogiri Hyperlocal Analysis" />
+        <div class="mt-3">
+          <div class="font-semibold">Hyperlocal Analysis for Trans Surakarta</div>
+          <div class="muted text-sm mb-2">Analisis halte/terminal potensial menggunakan data hyperlocal.</div>
+          <a href="./assets/portfolio/Wonogiri Hyperlocal Analysis.pdf" target="_blank"
+            class="btn-outline inline-block">Detail (PDF)</a>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <!-- ===========================
+       COMMENTS SECTION
+       =========================== -->
+  <section id="comments" class="py-8">
+    <div class="container max-w-3xl mx-auto" data-aos="fade-up">
+      <h3 class="text-lg font-semibold text-center mb-3">💬 Komentar Pengguna</h3>
+      <div class="glass p-4">
+        <form id="comment-form" class="flex flex-col gap-3">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+            <input id="comment-name" class="small-input" placeholder="Nama (opsional)" />
+            <input id="comment-email" class="small-input" placeholder="Email (opsional)" />
+          </div>
+          <textarea id="comment-input" class="small-input" rows="3" placeholder="Tulis komentar..." required></textarea>
+          <div class="flex items-center gap-3">
+            <button type="submit" class="btn-primary">Kirim</button>
+            <div class="ml-auto flex items-center gap-2 text-sm muted">
+              <label for="rows-per-page">Rows</label>
+              <select id="rows-per-page" class="small-input">
+                <option value="5">5</option>
+                <option value="10">10</option>
+                <option value="15">15</option>
+              </select>
+            </div>
+          </div>
+        </form>
+        <div id="comment-list" class="mt-4 space-y-3"></div>
+        <div id="pagination-controls" class="mt-3 flex items-center justify-center gap-2 pagination"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===========================
+       FOOTER
+       =========================== -->
+  <footer class="py-6 text-center muted border-t">© 2025 Bentala Nusantara</footer>
+
+  <!-- ===========================
+       BOTTOM NAVIGATION (MOBILE)
+       =========================== -->
+  <nav class="bottom-nav" aria-hidden="false" md:flex items-center gap-6>
+    <div class="bottom-nav-inner md:flex items-center gap-3">
+      <a href="#home" class="bottom-item" id="bn-home"><span>🏠</span><small>Home</small></a>
+      <a href="#map-canvas" class="bottom-item" id="bn-map"><span>🗺️</span><small>Map</small></a>
+      <a href="#portfolio" class="bottom-item" id="bn-portfolio"><span>📁</span><small>Portfolio</small></a>
+      <a href="#comments" class="bottom-item" id="bn-comments"><span>💬</span><small>Comments</small></a>
+    </div>
+  </nav>
+
+  <!-- ===========================
+       KONFIGURASI API (DIPISAH)
+       =========================== -->
+  <script src="config.js"></script>
+  <script>
+    // Fallback jika config.js tidak ada (untuk development / setelah clone)
+    window.CONFIG = window.CONFIG || {
+      OPENWEATHER_API_KEY: 'YOUR_OPENWEATHER_API_KEY',
+      MAP_SERVICE_KEY: 'YOUR_MAP_SERVICE_KEY'
+    };
+
+    // ===========================
+    // KONFIGURASI API LAINNYA
+    // ===========================
+    const BMKG_GEMPA_URL = 'https://data.bmkg.go.id/DataMKG/TEWS/autogempa.json';
+    const BMKG_SHAKEMAP_BASE = 'https://data.bmkg.go.id/DataMKG/TEWS/';
+    const DEFAULT_LAT = -6.1754;
+    const DEFAULT_LON = 106.8271;
+
+    // Ambil API key dari CONFIG
+    const OPENWEATHER_API_KEY = window.CONFIG.OPENWEATHER_API_KEY;
+    const MAP_SERVICE_KEY = window.CONFIG.MAP_SERVICE_KEY;
+
+    // ===========================
+    // CACHE GEMPA (FRONTEND)
+    // ===========================
+    const earthquakeCache = {
+      data: null,
+      bmkgDateTime: null,
+      fetchedAt: null
+    };
+    let isFetchingGempa = false;
+    let currentGempaData = null;
+
+    function isCacheValid() {
+      if (!earthquakeCache.data || !earthquakeCache.bmkgDateTime) return false;
+      const now = new Date();
+      return (now - earthquakeCache.bmkgDateTime) < 60000;
+    }
+
+    // ===========================
+    // WEATHER & USER LOCATION
+    // ===========================
+    let currentWeatherCoords = { lat: DEFAULT_LAT, lon: DEFAULT_LON };
+    let userMarker = null;
+
+    const modal = document.getElementById('weather-modal');
+    const openBtn = document.getElementById('open-weather-modal');
+    const closeBtn2 = document.getElementById('close-weather-modal-btn');
+    const refreshBtn = document.getElementById('refresh-weather');
+    const tempEl = document.getElementById('temperature');
+    const descEl = document.getElementById('description');
+    const iconEl = document.getElementById('weather-icon');
+    const lastUpdatedEl = document.getElementById('last-updated');
+    const locationEl = document.getElementById('weather-location');
+
+    async function fetchWeatherByCoords(lat, lon) {
+      try {
+        const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${OPENWEATHER_API_KEY}&units=metric&lang=id`;
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('Gagal fetching cuaca');
+        const data = await response.json();
+        tempEl.textContent = `${data.main.temp.toFixed(1)}°C`;
+        descEl.textContent = data.weather[0].description;
+        iconEl.src = `https://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png`;
+        iconEl.alt = data.weather[0].description;
+        lastUpdatedEl.textContent = `Diperbarui: ${new Date().toLocaleTimeString()}`;
+        locationEl.textContent = `📍 ${data.name}, ${data.sys.country}`;
+      } catch (error) {
+        alert('Gagal memuat cuaca. Pastikan koneksi internet dan API key benar.');
+        console.error(error);
+      }
+    }
+
+    function updateUserLocationMarker(lat, lon) {
+      if (!mapInstance) {
+        console.warn('Map belum siap, tidak bisa menambahkan marker lokasi.');
+        return;
+      }
+      if (userMarker) {
+        userMarker.remove();
+        userMarker = null;
+      }
+      const el = document.createElement('div');
+      el.innerHTML = `
+        <div style="
+          background: #2563eb;
+          width: 20px;
+          height: 20px;
+          border-radius: 50%;
+          border: 3px solid white;
+          box-shadow: 0 0 8px rgba(0,0,0,0.4);
+        "></div>`;
+      const popup = new maplibregl.Popup({ offset: 14 })
+        .setHTML('<div style="font-size:12px;font-weight:600; color:#000">📍 Lokasi Anda</div>');
+      userMarker = new maplibregl.Marker(el)
+        .setLngLat([lon, lat])
+        .setPopup(popup)
+        .addTo(mapInstance);
+    }
+
+    function detectLocationAndFetchWeather() {
+      if (!navigator.geolocation) {
+        console.warn('Geolocation tidak didukung. Menggunakan default Jakarta.');
+        currentWeatherCoords = { lat: DEFAULT_LAT, lon: DEFAULT_LON };
+        fetchWeatherByCoords(DEFAULT_LAT, DEFAULT_LON);
+        updateUserLocationMarker(DEFAULT_LAT, DEFAULT_LON);
+        return;
+      }
+
+      locationEl.textContent = '📍 Mendeteksi lokasi...';
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          currentWeatherCoords = {
+            lat: pos.coords.latitude,
+            lon: pos.coords.longitude
+          };
+          fetchWeatherByCoords(currentWeatherCoords.lat, currentWeatherCoords.lon);
+          updateUserLocationMarker(currentWeatherCoords.lat, currentWeatherCoords.lon);
+        },
+        (err) => {
+          console.warn('Geolokasi ditolak/gagal:', err.message);
+          currentWeatherCoords = { lat: DEFAULT_LAT, lon: DEFAULT_LON };
+          fetchWeatherByCoords(DEFAULT_LAT, DEFAULT_LON);
+          updateUserLocationMarker(DEFAULT_LAT, DEFAULT_LON);
+        },
+        { timeout: 5000 }
+      );
+    }
+
+    openBtn.addEventListener('click', () => {
+      modal.classList.remove('hidden');
+      if (currentWeatherCoords.lat !== DEFAULT_LAT || currentWeatherCoords.lon !== DEFAULT_LON) {
+        fetchWeatherByCoords(currentWeatherCoords.lat, currentWeatherCoords.lon);
+      } else {
+        detectLocationAndFetchWeather();
+      }
+    });
+    closeBtn2.addEventListener('click', () => modal.classList.add('hidden'));
+    refreshBtn.addEventListener('click', () => {
+      fetchWeatherByCoords(currentWeatherCoords.lat, currentWeatherCoords.lon);
+    });
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) modal.classList.add('hidden');
+    });
+
+    detectLocationAndFetchWeather();
+
+    // ===========================
+    // AOS INIT
+    // ===========================
+    const prefersReduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    window.addEventListener('load', () => {
+      if (window.AOS && !prefersReduced) AOS.init({ duration: 650, once: true, offset: 60 });
+      else if (window.AOS) AOS.init({ duration: 0, once: true, offset: 0 });
+    });
+
+    // ===========================
+    // THEME TOGGLE
+    // ===========================
+    const themeToggle = document.getElementById('theme-toggle');
+    const htmlEl = document.documentElement;
+    function setTheme(t) {
+      htmlEl.setAttribute('data-theme', t);
+      themeToggle.textContent = t === 'dark' ? 'Light' : 'Dark';
+      try { localStorage.setItem('bn_theme', t); } catch (e) {}
+    }
+    (function initTheme() {
+      try {
+        const stored = localStorage.getItem('bn_theme');
+        if (stored) setTheme(stored);
+        else {
+          const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          setTheme(prefersDark ? 'dark' : 'light');
+        }
+      } catch (e) { setTheme('light'); }
+    })();
+    themeToggle.addEventListener('click', () =>
+      setTheme(htmlEl.getAttribute('data-theme') === 'dark' ? 'light' : 'dark')
+    );
+
+    // ===========================
+    // SMOOTH SCROLL ANCHOR
+    // ===========================
+    document.querySelectorAll('a[href^="#"]').forEach(a => {
+      a.addEventListener('click', (e) => {
+        const target = a.getAttribute('href');
+        if (target && target.startsWith('#')) {
+          const el = document.querySelector(target);
+          if (el) { e.preventDefault(); el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+        }
+      });
+    });
+
+    // ===========================
+    // MAP INITIALIZATION
+    // ===========================
+    const DEFAULT_THEME = "basic";
+    let mapInstance = null;
+    let mapInitialized = false;
+
+    function handleMapError() {
+      const loader = document.getElementById('map-loading');
+      if (loader) {
+        loader.innerHTML = `
+          <div class="loading-text text-red-500">Gagal memuat peta</div>
+          <div class="muted text-sm mb-3">Periksa koneksi atau refresh halaman</div>
+          <button onclick="location.reload()" class="btn-outline" style="padding:0.5rem 1rem;">Coba Lagi</button>
+        `;
+      }
+    }
+
+    function createMap() {
+      if (mapInitialized || typeof maplibregl === 'undefined') return;
+      mapInitialized = true;
+
+      try {
+        mapInstance = new maplibregl.Map({
+          container: 'map',
+          style: `https://basemap.mapid.io/styles/${DEFAULT_THEME}/style.json?key=${MAP_SERVICE_KEY}`,
+          center: [currentWeatherCoords.lon || DEFAULT_LON, currentWeatherCoords.lat || DEFAULT_LAT],
+          zoom: 12,
+          pitch: 0,
+          bearing: 0,
+          canvasContextAttributes: { antialias: true },
+          attributionControl: true,
+        });
+
+        mapInstance.on('load', () => {
+          const loader = document.getElementById('map-loading');
+          if (loader) {
+            loader.style.opacity = '0';
+            setTimeout(() => loader?.remove(), 450);
+          }
+          // Tunggu hingga koordinat pengguna tersedia, lalu panggil fetchEarthquake
+          if (currentWeatherCoords.lat !== DEFAULT_LAT || currentWeatherCoords.lon !== DEFAULT_LON) {
+            updateUserLocationMarker(currentWeatherCoords.lat, currentWeatherCoords.lon);
+            fetchEarthquake();
+          } else {
+            const checkLocationInterval = setInterval(() => {
+              if (currentWeatherCoords.lat !== DEFAULT_LAT || currentWeatherCoords.lon !== DEFAULT_LON) {
+                clearInterval(checkLocationInterval);
+                updateUserLocationMarker(currentWeatherCoords.lat, currentWeatherCoords.lon);
+                fetchEarthquake();
+              }
+            }, 500);
+            setTimeout(() => {
+              clearInterval(checkLocationInterval);
+              if (!currentGempaData) {
+                updateUserLocationMarker(DEFAULT_LAT, DEFAULT_LON);
+                fetchEarthquake();
+              }
+            }, 5000);
+          }
+        });
+
+        mapInstance.on('error', (e) => {
+          console.error('Map error:', e);
+          handleMapError();
+        });
+
+        mapInstance.addControl(new maplibregl.NavigationControl(), 'top-right');
+        window.BN_MAP = mapInstance;
+      } catch (err) {
+        console.error(err);
+        handleMapError();
+      }
+    }
+
+    // ===========================
+    // FETCH GEMPA DENGAN CACHE 1 MENIT
+    // ===========================
+    async function fetchEarthquake() {
+      if (isCacheValid()) {
+        console.log('[GEMPA] Menggunakan data dari cache');
+        processEarthquakeData(earthquakeCache.data);
+        return;
+      }
+      if (isFetchingGempa) return;
+      isFetchingGempa = true;
+
+      const ql = document.getElementById('quake-loading');
+      if (ql) ql.classList.remove('hidden');
+
+      try {
+        const res = await fetch(BMKG_GEMPA_URL);
+        if (!res.ok) throw new Error('Gagal mengambil data gempa dari BMKG');
+        const data = await res.json();
+        const q = data?.Infogempa?.gempa;
+        if (!q || !q.Coordinates) throw new Error('Data gempa tidak valid');
+
+        const bmkgTimeStr = q.DateTime;
+        earthquakeCache.data = data;
+        earthquakeCache.bmkgDateTime = bmkgTimeStr ? new Date(bmkgTimeStr.replace('Z', '+00:00')) : new Date();
+        earthquakeCache.fetchedAt = new Date();
+        console.log('[GEMPA] Data disimpan ke cache. Waktu BMKG:', earthquakeCache.bmkgDateTime);
+        processEarthquakeData(data);
+      } catch (err) {
+        console.error('[GEMPA ERROR]', err);
+        if (ql) ql.textContent = '❌ Gagal memuat data gempa';
+      } finally {
+        isFetchingGempa = false;
+      }
+    }
+
+    function processEarthquakeData(data) {
+      const q = data?.Infogempa?.gempa;
+      if (!q || !q.Coordinates) return;
+
+      const [lat, lng] = q.Coordinates.split(',').map(v => parseFloat(v.trim()));
+      if (isNaN(lat) || isNaN(lng)) return;
+
+      if (!mapInstance) {
+        console.warn('[GEMPA] Map belum siap');
+        return;
+      }
+
+      currentGempaData = {
+        lat, lng,
+        shakemap: q.Shakemap,
+        magnitude: q.Magnitude,
+        wilayah: q.Wilayah,
+        tanggal: q.Tanggal,
+        jam: q.Jam,
+        kedalaman: q.Kedalaman,
+        potensi: q.Potensi
+      };
+
+      const qp = document.getElementById('quake-panel');
+      const ql = document.getElementById('quake-loading');
+      const qc = document.getElementById('quake-content');
+      if (qp) qp.classList.remove('hidden');
+      if (ql) ql.classList.add('hidden');
+      if (qc) qc.classList.remove('hidden');
+
+      const popupHTML = `
+        <div style="font-size:13px;line-height:1.5; color:#000">
+          <div><strong>📅</strong> ${q.Tanggal} ${q.Jam}</div>
+          <div><strong>📍</strong> ${q.Wilayah}</div>
+          <div><strong>⚡</strong> ${q.Magnitude} SR</div>
+          <div><strong>🌊</strong> ${q.Kedalaman}</div>
+          <div><strong>📢</strong> ${q.Potensi}</div>
+        </div>`;
+      if (qc) {
+        // Biarkan teks mengikuti tema
+        qc.innerHTML = popupHTML.replace('color:#000', '');
+      }
+
+      const el = document.createElement('div');
+      el.innerHTML = `
+        <div style="
+          background:#e11d48;
+          color:white;
+          font-weight:700;
+          width:36px;
+          height:36px;
+          border-radius:999px;
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          box-shadow:0 6px 18px rgba(0,0,0,.25)">
+          ${q.Magnitude}
+        </div>`;
+
+      const popup = new maplibregl.Popup({ offset: 18, closeButton: true, closeOnClick: false })
+        .setHTML(popupHTML);
+
+      new maplibregl.Marker(el)
+        .setLngLat([lng, lat])
+        .setPopup(popup)
+        .addTo(mapInstance)
+        .togglePopup();
+
+      // === PERBAIKAN NAVIGASI PETA ===
+      const userLat = currentWeatherCoords.lat || DEFAULT_LAT;
+      const userLon = currentWeatherCoords.lon || DEFAULT_LON;
+
+      const bounds = new maplibregl.LngLatBounds()
+        .extend([lng, lat])
+        .extend([userLon, userLat]);
+
+      mapInstance.fitBounds(bounds, {
+        padding: 80,
+        maxZoom: 12,
+        duration: 1000
+      });
+    }
+
+    // ===========================
+    // TOGGLE SHAKEMAP (DI BAWAH TOMBOL)
+    // ===========================
+    const toggleShakemapBtn = document.getElementById('toggle-shakemap-btn');
+    const shakemapContainer = document.getElementById('shakemap-container');
+    const shakemapImg = document.getElementById('shakemap-img');
+    let shakemapVisible = false;
+
+    function hideShakemap() {
+      shakemapContainer.style.display = 'none';
+      shakemapImg.src = '';
+      shakemapVisible = false;
+      toggleShakemapBtn.textContent = '🗺️ Tampilkan Shakemap';
+    }
+
+    function showShakemap() {
+      if (!currentGempaData || !currentGempaData.shakemap) {
+        alert('Data shakemap belum tersedia. Harap tunggu data gempa termuat.');
+        return;
+      }
+      const shakeUrl = BMKG_SHAKEMAP_BASE + currentGempaData.shakemap;
+      console.log('[SHAKEMAP URL]', shakeUrl);
+      shakemapImg.src = shakeUrl;
+      shakemapContainer.style.display = 'block';
+      shakemapVisible = true;
+      toggleShakemapBtn.textContent = '🗺️ Sembunyikan Shakemap';
+    }
+
+    toggleShakemapBtn.addEventListener('click', () => {
+      if (shakemapVisible) {
+        hideShakemap();
+      } else {
+        showShakemap();
+      }
+    });
+
+    // Lazy load map
+    const mapEl = document.getElementById('map');
+    if ('IntersectionObserver' in window) {
+      const io = new IntersectionObserver((entries, obs) => {
+        entries.forEach(ent => {
+          if (ent.isIntersecting) {
+            createMap();
+            obs.unobserve(ent.target);
+          }
+        });
+      }, { rootMargin: '200px' });
+      io.observe(mapEl);
+    } else {
+      window.addEventListener('load', createMap);
+    }
+
+    document.getElementById('btn-scroll-map').addEventListener('click', () => {
+      createMap();
+    });
+
+    setTimeout(() => {
+      if (!mapInstance) handleMapError();
+    }, 6000);
+
+    // ===========================
+    // KOMENTAR (CRUD VIA MOCKAPI)
+    // ===========================
+    const API_ENDPOINT = "https://68d145ade6c0cbeb39a42e48.mockapi.io/webgis/saran/v1/";
+    const commentForm = document.getElementById('comment-form');
+    const commentInput = document.getElementById('comment-input');
+    const nameInput = document.getElementById('comment-name');
+    const emailInput = document.getElementById('comment-email');
+    const rowsPerPageSelect = document.getElementById('rows-per-page');
+    const commentList = document.getElementById('comment-list');
+    const paginationControls = document.getElementById('pagination-controls');
+
+    let allComments = [];
+    let currentPage = 1;
+    let rowsPerPage = parseInt(rowsPerPageSelect.value || 5);
+
+    rowsPerPageSelect.addEventListener('change', () => {
+      rowsPerPage = parseInt(rowsPerPageSelect.value);
+      currentPage = 1;
+      renderComments();
+    });
+
+    function escapeHtml(unsafe) {
+      if (!unsafe && unsafe !== 0) return '';
+      return String(unsafe)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+    }
+
+    async function fetchComments() {
+      try {
+        const res = await fetch(API_ENDPOINT + "?sortBy=id&order=desc");
+        if (!res.ok) throw new Error('Network response not ok: ' + res.status);
+        const data = await res.json();
+        allComments = data;
+        renderComments();
+      } catch (err) {
+        console.error('Fetch comments failed:', err);
+        commentList.innerHTML = `<div class="text-center text-red-500 p-4">Gagal memuat komentar.</div>`;
+      }
+    }
+
+    function renderComments() {
+      const total = allComments.length;
+      const totalPages = Math.max(1, Math.ceil(total / rowsPerPage));
+      if (currentPage > totalPages) currentPage = totalPages;
+      const start = (currentPage - 1) * rowsPerPage;
+      const pageData = allComments.slice(start, start + rowsPerPage);
+
+      commentList.innerHTML = '';
+      if (!pageData.length) {
+        commentList.innerHTML = `<div class="text-center muted p-4">Belum ada komentar.</div>`;
+      } else {
+        pageData.forEach(c => {
+          const div = document.createElement('div');
+          div.className = 'comment';
+          const name = c.name || 'Pengunjung';
+          const text = c.kritik_saran || c.text || '';
+          const ts = c.createdAt ? new Date(c.createdAt).toLocaleString() : (c.timestamp || '');
+          div.innerHTML = `
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div style="font-weight:600">👤 ${escapeHtml(name)}</div>
+              <div style="font-size:.8rem;color:var(--muted)">${escapeHtml(ts)}</div>
+            </div>
+            <div style="margin-top:.5rem">${escapeHtml(text)}</div>`;
+          commentList.appendChild(div);
+        });
+      }
+      renderPaginationControls(totalPages);
+    }
+
+    function renderPaginationControls(totalPages) {
+      paginationControls.innerHTML = '';
+      const prev = document.createElement('button');
+      prev.textContent = '‹';
+      prev.className = 'px-2 py-1 rounded border';
+      prev.disabled = currentPage === 1;
+      prev.onclick = () => { if (currentPage > 1) { currentPage--; renderComments(); } };
+      paginationControls.appendChild(prev);
+
+      const startPage = Math.max(1, currentPage - 2);
+      const endPage = Math.min(totalPages, startPage + 4);
+      for (let p = startPage; p <= endPage; p++) {
+        const btn = document.createElement('button');
+        btn.textContent = p;
+        btn.className = `px-3 py-1 rounded ${p === currentPage ? 'bg-[var(--accent)] text-[var(--bg)] font-semibold' : 'hover:bg-[var(--border)]'}`;
+        btn.onclick = () => { currentPage = p; renderComments(); };
+        paginationControls.appendChild(btn);
+      }
+
+      const next = document.createElement('button');
+      next.textContent = '›';
+      next.className = 'px-2 py-1 rounded border';
+      next.disabled = currentPage === totalPages;
+      next.onclick = () => { if (currentPage < totalPages) { currentPage++; renderComments(); } };
+      paginationControls.appendChild(next);
+    }
+
+    commentForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const text = commentInput.value.trim();
+      if (!text) return alert('Komentar tidak boleh kosong.');
+      const payload = {
+        name: (nameInput.value.trim() || 'Pengunjung'),
+        email: (emailInput.value.trim() || ''),
+        kritik_saran: text
+      };
+      const optimistic = { ...payload, createdAt: new Date().toISOString() };
+      allComments.unshift(optimistic);
+      renderComments();
+      commentInput.value = '';
+      nameInput.value = '';
+      emailInput.value = '';
+
+      try {
+        const resp = await fetch(API_ENDPOINT, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (!resp.ok) {
+          console.error('POST failed', resp.status);
+          alert('Gagal mengirim komentar ke server. Ditampilkan lokal.');
+          fetchComments();
+        } else {
+          fetchComments();
+        }
+      } catch (err) {
+        console.error('Post error', err);
+        alert('Gagal mengirim komentar. Periksa koneksi.');
+        fetchComments();
+      }
+    });
+
+    fetchComments();
+
+    // ===========================
+    // MOBILE BOTTOM NAV ACTIVE
+    // ===========================
+    function setBottomActive(hash) {
+      document.querySelectorAll('.bottom-item').forEach(el => el.classList.remove('active'));
+      const map = {
+        '#home': 'bn-home',
+        '#map-canvas': 'bn-map',
+        '#portfolio': 'bn-portfolio',
+        '#comments': 'bn-comments'
+      }[hash];
+      if (map) {
+        const el = document.getElementById(map);
+        if (el) el.classList.add('active');
+      }
+    }
+
+    window.addEventListener('scroll', () => {
+      const sections = ['#home', '#map-canvas', '#portfolio', '#comments'];
+      let current = '#home';
+      for (const s of sections) {
+        const el = document.querySelector(s);
+        if (!el) continue;
+        const rect = el.getBoundingClientRect();
+        if (rect.top <= window.innerHeight * 0.4) current = s;
+      }
+      setBottomActive(current);
+    });
+
+    // ===========================
+    // LAZY LOAD IMAGES
+    // ===========================
+    if ('IntersectionObserver' in window) {
+      const imgs = document.querySelectorAll('img[loading="lazy"]');
+      const obsImg = new IntersectionObserver((entries, o) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            const img = entry.target;
+            img.classList.add('in');
+            o.unobserve(img);
+          }
+        });
+      }, { rootMargin: '200px' });
+      imgs.forEach(i => obsImg.observe(i));
+    }
+
+    // ===========================
+    // FALLBACK CSS ANIMATIONS
+    // ===========================
+    document.addEventListener('DOMContentLoaded', () => {
+      document.querySelectorAll('[data-aos]').forEach(el => {
+        el.classList.add('fade-up');
+        setTimeout(() => el.classList.add('in'), 90);
+      });
+    });
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,15 @@
+{
+    "created": "2025-05-18T23:44:19.761700",
+    "description": "Individual population counts (1km resolution) for 2026",
+    "format": "GeoTIFF",
+    "download_url": "https://data.worldpop.org/GIS/Population/Global_2015_2030/R2025A/2026/IDN/v1/1km_ua/constrained/idn_pop_2026_CN_1km_R2025A_UA_v1.tif",
+    "id": "400c9a6c-6d6c-47f9-b004-21079e0e6455",
+    "last_modified": "2025-09-01T00:00:00",
+    "metadata_modified": "2026-03-23T01:25:52.662205",
+    "microdata": false,
+    "dataset_id": "00425cb3-c206-4344-b3f4-fd19b0520717",
+    "resource_type": "api",
+    "name": "idn_pop_2026_cn_1km.tif",
+    "mimetype": null,
+    "size": "5.3M"
+}
