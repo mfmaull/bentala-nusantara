@@ -1,0 +1,25 @@
+# Backend — deployed to HuggingFace Spaces, not Vercel
+backend/
+assets/json/
+requirements.txt
+Dockerfile
+
+# Sample / dev data — tidak diperlukan frontend
+sample json response.txt
+Kepadatan penduduk DKI Jakarta.ipynb
+genai.html
+
+# Python artifacts — tidak diperlukan di Vercel (Node.js)
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Environment
+.env
+.env.local
+config.js
+
+# Git
+.git/
+.gitignore

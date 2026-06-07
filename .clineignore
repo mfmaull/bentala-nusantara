@@ -1,0 +1,21 @@
+assets/json/*.tif
+assets/json/*.tiff
+assets/json/gadm36_IDN_2.json
+
+assets/portfolio/*.pdf
+assets/portfolio/*.png
+
+sample json response.txt
+
+node_modules/
+
+__pycache__/
+*.pyc
+
+.git/
+dist/
+.vercel/
+
+config.js
+.env
+.env.local

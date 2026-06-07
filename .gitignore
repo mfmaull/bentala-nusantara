@@ -13,6 +13,22 @@ __pycache__/
 *.pyd
 .Python
 
+# Jupyter
+.ipynb_checkpoints/
+
+# Sample / test data — 28MB, tidak perlu di-commit
+sample json response.txt
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
 # OS
 .DS_Store
 Thumbs.db
+
+# Build
+dist/
+build/
