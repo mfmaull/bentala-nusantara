@@ -18,7 +18,6 @@ __pycache__/
 # Environment
 .env
 .env.local
-config.js
 
 # Git
 .git/

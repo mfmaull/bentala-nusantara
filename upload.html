@@ -1,0 +1,1178 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="light" class="scroll-smooth">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Bentala Nusantara | Upload Data</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- SheetJS untuk baca file Excel, PapaParse untuk CSV -->
+  <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ── Tema & Variabel ── */
+    :root {
+      --bg: #ffffff;
+      --fg: #0b0b0b;
+      --krem: #f3ead7;
+      --muted: #6f6f6f;
+      --card: #fbf9f6;
+      --border: #ece7df;
+      --glass: rgba(11, 11, 11, 0.04);
+      --accent: #0b0b0b;
+      --radius: 12px;
+      --shadow: 0 8px 20px rgba(11, 11, 11, 0.06);
+    }
+
+    [data-theme="dark"] {
+      --bg: #0a0a0a;
+      --fg: #f5f5f5;
+      --krem: #322b23;
+      --muted: #bdbdbd;
+      --card: #141414;
+      --border: #222;
+      --glass: rgba(255, 255, 255, 0.03);
+      --accent: #f5f5f5;
+      --shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+    }
+
+    html,
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      -webkit-font-smoothing: antialiased;
+      margin: 0;
+    }
+
+    /* ── Header ── */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 60;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.65), rgba(255, 255, 255, 0.45));
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(6px);
+    }
+
+    [data-theme="dark"] header {
+      background: linear-gradient(180deg, rgba(10, 10, 10, 0.8), rgba(10, 10, 10, 0.7));
+    }
+
+    /* ── Card / Glass ── */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 1.5rem;
+    }
+
+    /* ── Input ── */
+    .field {
+      width: 100%;
+      padding: .65rem .85rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: transparent;
+      color: var(--fg);
+      font-size: .9rem;
+      box-sizing: border-box;
+      transition: border-color .2s;
+    }
+
+    .field:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(11, 11, 11, 0.06);
+    }
+
+    [data-theme="dark"] .field:focus {
+      box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.06);
+    }
+
+    .field-label {
+      font-size: .82rem;
+      font-weight: 600;
+      margin-bottom: .35rem;
+      display: block;
+    }
+
+    .field-hint {
+      font-size: .75rem;
+      color: var(--muted);
+      margin-top: .25rem;
+    }
+
+    /* ── Upload zone ── */
+    .upload-zone {
+      border: 2px dashed var(--border);
+      border-radius: 10px;
+      padding: 1.5rem;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .2s, background .2s;
+    }
+
+    .upload-zone:hover,
+    .upload-zone.drag-over {
+      border-color: var(--accent);
+      background: var(--krem);
+    }
+
+    .upload-zone.has-file {
+      border-color: #22c55e;
+      border-style: solid;
+      background: rgba(34, 197, 94, 0.05);
+    }
+
+    .upload-zone.has-error {
+      border-color: #ef4444;
+      border-style: solid;
+    }
+
+    /* ── Preview tabel ── */
+    .preview-wrap {
+      overflow-x: auto;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      margin-top: 1rem;
+    }
+
+    .preview-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .8rem;
+    }
+
+    .preview-table th {
+      background: var(--krem);
+      padding: .5rem .75rem;
+      text-align: left;
+      font-weight: 700;
+      white-space: nowrap;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .preview-table td {
+      padding: .45rem .75rem;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+      color: var(--fg);
+    }
+
+    .preview-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .preview-table tr:hover td {
+      background: var(--glass);
+    }
+
+    .col-highlight th.lat-lng,
+    .col-highlight td.lat-lng {
+      background: rgba(34, 197, 94, 0.08);
+      font-weight: 600;
+    }
+
+    /* ── Badge validasi ── */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: .75rem;
+      font-weight: 600;
+    }
+
+    .badge-ok {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .badge-warn {
+      background: #fef9c3;
+      color: #854d0e;
+    }
+
+    .badge-err {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    [data-theme="dark"] .badge-ok {
+      background: #14532d;
+      color: #86efac;
+    }
+
+    [data-theme="dark"] .badge-warn {
+      background: #422006;
+      color: #fde047;
+    }
+
+    [data-theme="dark"] .badge-err {
+      background: #450a0a;
+      color: #fca5a5;
+    }
+
+    /* ── Tombol ── */
+    .btn-primary {
+      background: var(--accent);
+      color: var(--bg);
+      padding: .65rem 1.4rem;
+      border-radius: 999px;
+      font-weight: 700;
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      transition: transform .18s, box-shadow .18s;
+      font-size: .9rem;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 18px rgba(11, 11, 11, 0.12);
+    }
+
+    .btn-primary:disabled {
+      opacity: .4;
+      cursor: not-allowed;
+    }
+
+    .btn-outline {
+      background: transparent;
+      color: var(--fg);
+      padding: .55rem 1rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      font-weight: 600;
+      cursor: pointer;
+      font-size: .85rem;
+    }
+
+    .btn-outline:hover {
+      background: var(--krem);
+    }
+
+    /* ── Progress bar ── */
+    .progress-bar {
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 2px;
+      transition: width .3s ease;
+    }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      padding: 12px 18px;
+      border-radius: 10px;
+      font-size: .85rem;
+      z-index: 999;
+      opacity: 0;
+      transition: opacity .3s;
+      pointer-events: none;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    }
+
+    #toast.show {
+      opacity: 1;
+    }
+
+    #toast.success {
+      background: #166534;
+      color: #fff;
+    }
+
+    #toast.error {
+      background: #991b1b;
+      color: #fff;
+    }
+
+    #toast.info {
+      background: var(--fg);
+      color: var(--bg);
+    }
+
+    /* ── Step indicator ── */
+    .step-dot {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: .75rem;
+      font-weight: 700;
+      border: 2px solid var(--border);
+      color: var(--muted);
+      background: var(--card);
+      flex-shrink: 0;
+    }
+
+    .step-dot.active {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .step-dot.done {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: var(--bg);
+    }
+
+    .step-line {
+      flex: 1;
+      height: 2px;
+      background: var(--border);
+    }
+
+    .step-line.done {
+      background: var(--accent);
+    }
+
+    /* ── Spinner ── */
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 2px solid transparent;
+      border-top-color: currentColor;
+      animation: spin .7s linear infinite;
+      display: inline-block;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    /* ── Misc ── */
+    .muted {
+      color: var(--muted);
+    }
+
+    .section-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+    }
+
+    * {
+      transition: background .15s, border-color .15s, color .15s;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      * {
+        transition: none !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ══ HEADER ══ -->
+  <header>
+    <div
+      style="max-width:1100px;margin:0 auto;padding:.75rem 1rem;display:flex;align-items:center;justify-content:space-between;">
+      <a href="index.html" style="display:flex;align-items:center;gap:.6rem;text-decoration:none;">
+        <div
+          style="width:40px;height:40px;border-radius:9px;display:flex;align-items:center;justify-content:center;border:1px solid var(--border);background:var(--card);">
+          📍</div>
+        <div>
+          <div style="font-weight:700;font-size:.95rem;">Bentala Nusantara</div>
+          <div style="font-size:.72rem;color:var(--muted);">Geospatial Data Upload</div>
+        </div>
+      </a>
+      <div style="display:flex;gap:.75rem;align-items:center;">
+        <a href="index.html" class="btn-outline" style="font-size:.8rem;">← Beranda</a>
+        <button id="theme-toggle" class="btn-outline" style="font-size:.8rem;">Dark</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ══ MAIN ══ -->
+  <main style="max-width:1100px;margin:0 auto;padding:2rem 1rem 6rem;">
+
+    <!-- Judul -->
+    <div style="text-align:center;margin-bottom:2rem;">
+      <h1 style="font-size:1.8rem;font-weight:800;margin:0;">📤 Upload Data</h1>
+      <p class="muted" style="margin-top:.5rem;">Upload file PDF dan Excel geospasial ke Bentala Nusantara</p>
+    </div>
+
+    <!-- Step indicator -->
+    <div style="display:flex;align-items:center;gap:.5rem;max-width:500px;margin:0 auto 2rem;" id="step-indicator">
+      <div class="step-dot active" id="step1-dot">1</div>
+      <div class="step-line" id="line-1-2"></div>
+      <div class="step-dot" id="step2-dot">2</div>
+      <div class="step-line" id="line-2-3"></div>
+      <div class="step-dot" id="step3-dot">3</div>
+      <div style="flex:1"></div>
+      <span style="font-size:.8rem;color:var(--muted);" id="step-label">Isi Informasi</span>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;" id="main-grid">
+
+      <!-- ══ KOLOM KIRI: FORM ══ -->
+      <div style="display:flex;flex-direction:column;gap:1.25rem;">
+
+        <!-- Seksi 1: Informasi Pengunggah -->
+        <div class="card">
+          <div class="section-title">👤 Informasi Pengunggah</div>
+          <div style="display:grid;gap:.85rem;">
+            <div>
+              <label class="field-label" for="f-email">Email <span style="color:#ef4444">*</span></label>
+              <input class="field" id="f-email" type="email" placeholder="nama@email.com" required />
+            </div>
+            <div>
+              <label class="field-label" for="f-date">Tanggal Upload <span style="color:#ef4444">*</span></label>
+              <input class="field" id="f-date" type="date" required />
+            </div>
+          </div>
+        </div>
+
+        <!-- Seksi 2: Lokasi -->
+        <div class="card">
+          <div class="section-title">🌏 Lokasi Data</div>
+          <div style="display:grid;gap:.85rem;">
+            <div>
+              <label class="field-label" for="f-country">Country <span style="color:#ef4444">*</span></label>
+              <input class="field" id="f-country" type="text" placeholder="INDONESIA"
+                style="text-transform:uppercase" />
+              <div class="field-hint">Otomatis jadi huruf kapital</div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
+              <div>
+                <label class="field-label" for="f-province">Province <span style="color:#ef4444">*</span></label>
+                <input class="field" id="f-province" type="text" placeholder="DKI JAKARTA"
+                  style="text-transform:uppercase" />
+              </div>
+              <div>
+                <label class="field-label" for="f-city">City <span style="color:#ef4444">*</span></label>
+                <input class="field" id="f-city" type="text" placeholder="JAKARTA" style="text-transform:uppercase" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Seksi 3: Upload PDF -->
+        <div class="card">
+          <div class="section-title">📄 Upload File PDF</div>
+          <div class="upload-zone" id="pdf-zone" onclick="document.getElementById('pdf-input').click()">
+            <div style="font-size:2rem;margin-bottom:.5rem;">📄</div>
+            <div style="font-weight:600;" id="pdf-zone-text">Klik untuk pilih file PDF</div>
+            <div class="field-hint">Jurnal, laporan, atau dokumen penelitian (maks. 10MB)</div>
+          </div>
+          <input type="file" id="pdf-input" accept=".pdf" style="display:none" />
+          <div id="pdf-info"
+            style="display:none;margin-top:.75rem;padding:.6rem .85rem;border-radius:8px;background:var(--krem);font-size:.85rem;">
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ══ KOLOM KANAN: EXCEL ══ -->
+      <div style="display:flex;flex-direction:column;gap:1.25rem;">
+
+        <!-- Seksi 4: Upload Excel -->
+        <div class="card">
+          <div class="section-title">📊 Upload File Excel</div>
+          <div class="upload-zone" id="excel-zone" onclick="document.getElementById('excel-input').click()">
+            <div style="font-size:2rem;margin-bottom:.5rem;">📊</div>
+            <div style="font-weight:600;" id="excel-zone-text">Klik untuk pilih file Excel</div>
+            <div class="field-hint">Format .xlsx, .xls, atau .csv. Wajib ada kolom <strong>Longitude</strong> dan
+              <strong>Latitude</strong>
+            </div>
+          </div>
+          <input type="file" id="excel-input" accept=".xlsx,.xls,.csv" style="display:none" />
+
+          <!-- Validasi kolom -->
+          <div id="excel-validation"
+            style="display:none;margin-top:.85rem;display:flex;flex-wrap:wrap;gap:.4rem;align-items:center;"></div>
+
+          <!-- Ringkasan data -->
+          <div id="excel-summary"
+            style="display:none;margin-top:.75rem;padding:.6rem .85rem;border-radius:8px;background:var(--krem);font-size:.85rem;">
+          </div>
+        </div>
+
+        <!-- Preview Tabel (muncul setelah Excel/CSV dipilih) -->
+        <div class="card" id="preview-card" style="display:none;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;">
+            <div class="section-title" style="margin-bottom:0;">🔍 Preview Data (Top 20)</div>
+            <span id="preview-count" class="muted" style="font-size:.8rem;"></span>
+          </div>
+          <div class="preview-wrap">
+            <table class="preview-table col-highlight" id="preview-table"></table>
+          </div>
+          <div class="field-hint" style="margin-top:.5rem;">Kolom <span
+              style="color:#16a34a;font-weight:700;">hijau</span> = Longitude & Latitude (otomatis).</div>
+
+          <!-- Variable Selector -->
+          <div id="var-selector-section" style="margin-top:1rem;display:none;">
+            <div class="section-title" style="font-size:.95rem;margin-bottom:.6rem;">🎯 Pilih Variable (1–5 kolom)</div>
+            <div style="display:grid;gap:.5rem;" id="var-selector-grid"></div>
+            <div id="var-selector-msg" class="field-hint" style="margin-top:.45rem;"></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ══ TOMBOL SUBMIT ══ -->
+    <div class="card" style="margin-top:1.5rem;text-align:center;">
+      <div id="submit-validation-msg" style="font-size:.85rem;color:var(--muted);margin-bottom:1rem;"></div>
+      <div style="display:flex;gap:1rem;justify-content:center;align-items:center;flex-wrap:wrap;">
+        <button class="btn-outline" onclick="resetForm()">🔄 Reset Form</button>
+        <button class="btn-primary" id="submit-btn" disabled onclick="submitUpload()">
+          📤 Upload Data
+        </button>
+      </div>
+      <!-- Progress bar (muncul saat submit) -->
+      <div id="progress-wrap"
+        style="display:none;margin-top:1.25rem;max-width:400px;margin-left:auto;margin-right:auto;">
+        <div style="font-size:.82rem;color:var(--muted);margin-bottom:.4rem;" id="progress-label">Memproses...</div>
+        <div class="progress-bar">
+          <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ HASIL UPLOAD ══ -->
+    <div id="result-card" style="display:none;" class="card" style="margin-top:1.5rem;text-align:center;"></div>
+
+  </main>
+
+  <!-- Toast -->
+  <div id="toast"></div>
+
+  <!-- Responsive: 1 kolom di mobile -->
+  <style>
+    @media (max-width: 768px) {
+      #main-grid {
+        grid-template-columns: 1fr !important;
+      }
+    }
+  </style>
+
+  <script>
+    // ════════════════════════════════════════════════
+    // KONFIGURASI — ganti dengan URL Apps Script Anda
+    // (URL dari spreadsheet db_file, bukan spreadsheet komentar)
+    // ════════════════════════════════════════════════
+    const UPLOAD_API_URL = "https://script.google.com/macros/s/AKfycbw2HusXnJzGus_UpVxNVhzOAWzqKaQXfUYFq5VNIfSb1EF5l_-EUdqHShPLHMt6JdVZzg/exec";
+
+    // ════════════════════════════════════════════════
+    // STATE
+    // ════════════════════════════════════════════════
+    let pdfFile = null;   // File object PDF
+    let excelFile = null;   // File object Excel/CSV
+    let excelData = [];     // Semua baris (array of objects)
+    let excelHeaders = [];     // Header kolom
+    let hasLatLng = false;  // Validasi Longitude & Latitude ada
+    let selectedVars = [];     // Header dipilih user sebagai Var 1-5
+
+    // ════════════════════════════════════════════════
+    // TEMA
+    // ════════════════════════════════════════════════
+    const themeBtn = document.getElementById("theme-toggle");
+    const htmlEl = document.documentElement;
+    function setTheme(t) {
+      htmlEl.setAttribute("data-theme", t);
+      themeBtn.textContent = t === "dark" ? "Light" : "Dark";
+      try { localStorage.setItem("bn_theme", t); } catch (e) { }
+    }
+    (function () {
+      try {
+        const s = localStorage.getItem("bn_theme");
+        setTheme(s || (matchMedia("(prefers-color-scheme:dark)").matches ? "dark" : "light"));
+      } catch (e) { setTheme("light"); }
+    })();
+    themeBtn.addEventListener("click", () =>
+      setTheme(htmlEl.getAttribute("data-theme") === "dark" ? "light" : "dark")
+    );
+
+    // ════════════════════════════════════════════════
+    // TOAST
+    // ════════════════════════════════════════════════
+    function showToast(msg, type = "info", duration = 3000) {
+      const t = document.getElementById("toast");
+      t.textContent = msg;
+      t.className = `show ${type}`;
+      setTimeout(() => t.classList.remove("show"), duration);
+    }
+
+    // ════════════════════════════════════════════════
+    // STEP INDICATOR
+    // ════════════════════════════════════════════════
+    function setStep(n) {
+      const labels = ["Isi Informasi", "Pilih File", "Siap Upload"];
+      document.getElementById("step-label").textContent = labels[n - 1] || "";
+      for (let i = 1; i <= 3; i++) {
+        const dot = document.getElementById(`step${i}-dot`);
+        dot.className = "step-dot" + (i < n ? " done" : i === n ? " active" : "");
+        if (i < 3) {
+          document.getElementById(`line-${i}-${i + 1}`).className = "step-line" + (i < n ? " done" : "");
+        }
+      }
+    }
+
+    // ════════════════════════════════════════════════
+    // VALIDASI FORM & ENABLE SUBMIT
+    // ════════════════════════════════════════════════
+    function checkReady() {
+      const email = document.getElementById("f-email").value.trim();
+      const date = document.getElementById("f-date").value;
+      const country = document.getElementById("f-country").value.trim();
+      const province = document.getElementById("f-province").value.trim();
+      const city = document.getElementById("f-city").value.trim();
+
+      const missing = [];
+      if (!email) missing.push("Email");
+      if (!date) missing.push("Tanggal Upload");
+      if (!country) missing.push("Country");
+      if (!province) missing.push("Province");
+      if (!city) missing.push("City");
+      if (!pdfFile) missing.push("File PDF");
+      if (!excelFile) missing.push("File Excel");
+      if (excelFile && !hasLatLng) missing.push("Kolom Longitude & Latitude di Excel");
+
+      const btn = document.getElementById("submit-btn");
+      const msg = document.getElementById("submit-validation-msg");
+
+      if (missing.length === 0) {
+        btn.disabled = false;
+        msg.textContent = "✅ Semua data lengkap. Siap upload!";
+        msg.style.color = "#16a34a";
+        setStep(3);
+      } else {
+        btn.disabled = true;
+        msg.textContent = "Belum lengkap: " + missing.join(", ");
+        msg.style.color = "var(--muted)";
+        setStep(pdfFile || excelFile ? 2 : 1);
+      }
+    }
+
+    // Pasang event listener ke semua field form
+    ["f-email", "f-date", "f-country", "f-province", "f-city"].forEach(id =>
+      document.getElementById(id).addEventListener("input", checkReady)
+    );
+
+    // Set tanggal default hari ini
+    document.getElementById("f-date").value = new Date().toISOString().split("T")[0];
+
+    // ════════════════════════════════════════════════
+    // UPLOAD PDF
+    // ════════════════════════════════════════════════
+    const pdfInput = document.getElementById("pdf-input");
+    const pdfZone = document.getElementById("pdf-zone");
+
+    pdfInput.addEventListener("change", () => {
+      const file = pdfInput.files[0];
+      if (!file) return;
+
+      if (file.type !== "application/pdf") {
+        showToast("File harus berformat PDF", "error");
+        return;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        showToast("Ukuran PDF maksimal 10MB", "error");
+        pdfZone.classList.add("has-error");
+        return;
+      }
+
+      pdfFile = file;
+      pdfZone.classList.remove("has-error");
+      pdfZone.classList.add("has-file");
+      document.getElementById("pdf-zone-text").textContent = "✅ " + file.name;
+
+      const info = document.getElementById("pdf-info");
+      info.style.display = "block";
+      info.innerHTML = `📄 <strong>${file.name}</strong> — ${(file.size / 1024).toFixed(1)} KB`;
+
+      showToast("PDF dipilih: " + file.name, "success");
+      checkReady();
+    });
+
+    // Drag & drop PDF
+    pdfZone.addEventListener("dragover", e => { e.preventDefault(); pdfZone.classList.add("drag-over"); });
+    pdfZone.addEventListener("dragleave", () => pdfZone.classList.remove("drag-over"));
+    pdfZone.addEventListener("drop", e => {
+      e.preventDefault();
+      pdfZone.classList.remove("drag-over");
+      const file = e.dataTransfer.files[0];
+      if (file) { pdfInput.files = e.dataTransfer.files; pdfInput.dispatchEvent(new Event("change")); }
+    });
+
+    // ════════════════════════════════════════════════
+    // DETEKSI KOLOM KOORDINAT — auto-detect
+    // ════════════════════════════════════════════════
+    const LON_PATTERNS = [/^longitude$/i, /^long$/i, /^lng$/i, /^lon$/i];
+    const LAT_PATTERNS = [/^latitude$/i, /^lat$/i];
+
+    function findCoordColumn(headers, patterns) {
+      for (const p of patterns) {
+        const match = headers.find(h => p.test(h));
+        if (match) return match;
+      }
+      return null;
+    }
+
+    // ════════════════════════════════════════════════
+    // UPLOAD & PARSE EXCEL/CSV (SheetJS + PapaParse)
+    // ════════════════════════════════════════════════
+    const excelInput = document.getElementById("excel-input");
+    const excelZone = document.getElementById("excel-zone");
+
+    async function parseFile(file) {
+      const isCSV = file.name.toLowerCase().endsWith(".csv");
+      const ext = file.name.split(".").pop().toLowerCase();
+
+      if (!["xlsx", "xls", "csv"].includes(ext)) {
+        throw new Error("Format tidak didukung. Gunakan .xlsx, .xls, atau .csv");
+      }
+
+      const buffer = await file.arrayBuffer();
+
+      if (isCSV) {
+        // Parse CSV dengan PapaParse — preserve header case
+        const text = new TextDecoder("utf-8").decode(buffer);
+        return new Promise((resolve, reject) => {
+          Papa.parse(text, {
+            header: true,
+            skipEmptyLines: true,
+            dynamicTyping: false,
+            complete: results => {
+              if (results.data.length === 0) reject(new Error("File CSV kosong"));
+              else resolve(results.data);
+            },
+            error: reject
+          });
+        });
+      } else {
+        // Parse Excel dengan SheetJS
+        const workbook = XLSX.read(buffer, { type: "array" });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const rows = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+        if (rows.length === 0) throw new Error("File Excel kosong");
+        return rows;
+      }
+    }
+
+    excelInput.addEventListener("change", () => {
+      const file = excelInput.files[0];
+      if (!file) return;
+
+      excelZone.classList.remove("has-error", "has-file");
+      document.getElementById("excel-zone-text").textContent = "⏳ Membaca file...";
+
+      (async () => {
+        try {
+          const jsonRows = await parseFile(file);
+          excelHeaders = Object.keys(jsonRows[0]);
+          excelData = jsonRows;
+          selectedVars = [];
+          hasLatLng = false;
+
+          // Auto-detect Longitude & Latitude
+          const lonCol = findCoordColumn(excelHeaders, LON_PATTERNS);
+          const latCol = findCoordColumn(excelHeaders, LAT_PATTERNS);
+          hasLatLng = !!(lonCol && latCol);
+
+          excelFile = file;
+          renderExcelValidation(!!lonCol, !!latCol);
+          renderExcelSummary(jsonRows.length, excelHeaders);
+          renderPreview(jsonRows.slice(0, 20), excelHeaders);
+
+          if (hasLatLng) {
+            // Tentukan non-coord headers
+            const nonCoord = excelHeaders.filter(h =>
+              h !== lonCol && h !== latCol
+            );
+            // Auto-select first up to 5, or show selector if >5
+            if (nonCoord.length <= 5) {
+              selectedVars = nonCoord;
+              renderVariableBadges();
+            } else {
+              renderVariableSelector(nonCoord);
+            }
+          }
+
+          excelZone.classList.add(hasLatLng ? "has-file" : "has-error");
+          document.getElementById("excel-zone-text").textContent =
+            (hasLatLng ? "✅ " : "⚠️ ") + file.name;
+
+          showToast(
+            hasLatLng
+              ? `File OK: ${jsonRows.length} baris ditemukan`
+              : "⚠️ Kolom Longitude / Latitude tidak ditemukan!",
+            hasLatLng ? "success" : "error",
+            4000
+          );
+          checkReady();
+
+        } catch (err) {
+          console.error(err);
+          showToast("Gagal membaca file: " + err.message, "error");
+          excelZone.classList.add("has-error");
+          document.getElementById("excel-zone-text").textContent = "❌ Gagal membaca file";
+        }
+      })();
+    });
+
+    // Drag & drop Excel/CSV
+    excelZone.addEventListener("dragover", e => { e.preventDefault(); excelZone.classList.add("drag-over"); });
+    excelZone.addEventListener("dragleave", () => excelZone.classList.remove("drag-over"));
+    excelZone.addEventListener("drop", e => {
+      e.preventDefault();
+      excelZone.classList.remove("drag-over");
+      const file = e.dataTransfer.files[0];
+      if (file) { excelInput.files = e.dataTransfer.files; excelInput.dispatchEvent(new Event("change")); }
+    });
+
+    // ── Render badge validasi kolom ──
+    function renderExcelValidation(hasLon, hasLat) {
+      const el = document.getElementById("excel-validation");
+      el.style.display = "flex";
+      el.innerHTML = `
+      <span style="font-size:.8rem;font-weight:600;margin-right:.25rem;">Kolom:</span>
+      <span class="badge ${hasLon ? 'badge-ok' : 'badge-err'}">${hasLon ? '✓' : '✗'} Longitude</span>
+      <span class="badge ${hasLat ? 'badge-ok' : 'badge-err'}">${hasLat ? '✓' : '✗'} Latitude</span>
+    `;
+      // Tampilkan semua header
+      excelHeaders.forEach(h => {
+        const isCoord = findCoordColumn([h], LON_PATTERNS) || findCoordColumn([h], LAT_PATTERNS);
+        if (!isCoord) {
+          const sel = selectedVars.includes(h);
+          el.innerHTML += `<span class="badge ${sel ? 'badge-ok' : 'badge-warn'}">${sel ? '✓' : '○'} ${h}</span>`;
+        }
+      });
+    }
+
+    // ── Render ringkasan file ──
+    function renderExcelSummary(totalRows, headers) {
+      const el = document.getElementById("excel-summary");
+      el.style.display = "block";
+      el.innerHTML = `
+      📊 <strong>${totalRows.toLocaleString()}</strong> baris data ·
+      <strong>${headers.length}</strong> kolom
+    `;
+    }
+
+    // ── Render variable badges di bawah validation ──
+    function renderVariableBadges() {
+      const el = document.getElementById("excel-validation");
+      // Hapus badge variabel lama lalu tambah ulang
+      const badges = el.querySelectorAll(".badge:not(:first-child):not(:nth-child(2)):not(:nth-child(3))");
+      badges.forEach(b => {
+        if (!b.textContent.includes("Longitude") && !b.textContent.includes("Latitude")) {
+          b.remove();
+        }
+      });
+      selectedVars.forEach(h => {
+        el.innerHTML += `<span class="badge badge-ok">✓ ${h}</span>`;
+      });
+      // Update variable selector UI
+      document.getElementById("var-selector-section").style.display = "none";
+    }
+
+    // ── Render variable selector (dropdowns for Var 1-5) ──
+    function renderVariableSelector(headers) {
+      const section = document.getElementById("var-selector-section");
+      const grid = document.getElementById("var-selector-grid");
+      const msg = document.getElementById("var-selector-msg");
+      section.style.display = "block";
+
+      // Hanya tampilkan non-coord headers
+      const lonCol = findCoordColumn(headers, LON_PATTERNS) || findCoordColumn(excelHeaders, LON_PATTERNS);
+      const latCol = findCoordColumn(headers, LAT_PATTERNS) || findCoordColumn(excelHeaders, LAT_PATTERNS);
+      const varHeaders = excelHeaders.filter(h => h !== lonCol && h !== latCol);
+
+      let html = "";
+      for (let i = 1; i <= 5; i++) {
+        html += `
+        <div style="display:flex;align-items:center;gap:.5rem;">
+          <span style="font-size:.82rem;font-weight:600;min-width:60px;">Var ${i}</span>
+          <select class="field" data-var-index="${i - 1}" style="font-size:.82rem;padding:.4rem .65rem;">
+            <option value="">— pilih kolom —</option>
+            ${varHeaders.map(h => `<option value="${h}">${h}</option>`).join("")}
+          </select>
+        </div>
+      `;
+      }
+      grid.innerHTML = html;
+
+      // Pasang event listener on change
+      grid.querySelectorAll("select").forEach(sel => {
+        sel.addEventListener("change", onVarSelectChange);
+      });
+
+      msg.textContent = `File memiliki ${excelHeaders.length} kolom. Pilih maks. 5 sebagai variable.`;
+    }
+
+    function onVarSelectChange() {
+      const selects = document.querySelectorAll("#var-selector-grid select");
+      const selected = new Set();
+      selects.forEach(sel => {
+        if (sel.value) selected.add(sel.value);
+      });
+      selectedVars = Array.from(selected);
+
+      // Cek duplikat
+      const values = Array.from(selects).map(s => s.value).filter(v => v);
+      const unique = new Set(values);
+      const dup = values.length !== unique.size;
+
+      const msg = document.getElementById("var-selector-msg");
+      if (dup) {
+        msg.textContent = "⚠️ Setiap kolom hanya bisa dipilih sekali. Pilih kolom yang berbeda.";
+        msg.style.color = "#ef4444";
+      } else if (selectedVars.length === 0) {
+        msg.textContent = "Pilih minimal 1 kolom sebagai variable.";
+        msg.style.color = "var(--muted)";
+      } else {
+        msg.textContent = `✅ ${selectedVars.length} variable dipilih: ${selectedVars.join(", ")}`;
+        msg.style.color = "#16a34a";
+      }
+
+      // Re-render badges
+      renderExcelValidation(
+        !!findCoordColumn(excelHeaders, LON_PATTERNS),
+        !!findCoordColumn(excelHeaders, LAT_PATTERNS)
+      );
+      checkReady();
+    }
+
+    // ── Render tabel preview ──
+    function renderPreview(rows, headers) {
+      const card = document.getElementById("preview-card");
+      const table = document.getElementById("preview-table");
+      const count = document.getElementById("preview-count");
+
+      card.style.display = "block";
+      count.textContent = `Menampilkan ${rows.length} dari ${excelData.length.toLocaleString()} baris`;
+
+      const lonCol = findCoordColumn(headers, LON_PATTERNS);
+      const latCol = findCoordColumn(headers, LAT_PATTERNS);
+      const isLatLng = h => h === lonCol || h === latCol;
+
+      let headerRow = "<thead><tr>";
+      headers.forEach(h => {
+        headerRow += `<th class="${isLatLng(h) ? 'lat-lng' : ''}">${h}</th>`;
+      });
+      headerRow += "</tr></thead>";
+
+      let bodyRows = "<tbody>";
+      rows.forEach(row => {
+        bodyRows += "<tr>";
+        headers.forEach(h => {
+          const val = row[h] ?? "";
+          bodyRows += `<td class="${isLatLng(h) ? 'lat-lng' : ''}">${val}</td>`;
+        });
+        bodyRows += "</tr>";
+      });
+      bodyRows += "</tbody>";
+
+      table.innerHTML = headerRow + bodyRows;
+    }
+
+    // ════════════════════════════════════════════════
+    // KONVERSI FILE KE BASE64
+    // ════════════════════════════════════════════════
+    function fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result.split(",")[1]); // hapus prefix "data:...;base64,"
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    // ════════════════════════════════════════════════
+    // SUBMIT UPLOAD
+    // ════════════════════════════════════════════════
+    async function submitUpload() {
+      const btn = document.getElementById("submit-btn");
+      btn.disabled = true;
+      btn.innerHTML = `<span class="spinner"></span> Mengupload...`;
+
+      const progressWrap = document.getElementById("progress-wrap");
+      const progressFill = document.getElementById("progress-fill");
+      const progressLabel = document.getElementById("progress-label");
+      progressWrap.style.display = "block";
+
+      try {
+        // ── Step 1: Encode PDF ke base64 ──
+        progressLabel.textContent = "Mempersiapkan file PDF...";
+        progressFill.style.width = "15%";
+        const pdfBase64 = await fileToBase64(pdfFile);
+
+        // ── Step 2: Siapkan data Excel ──
+        progressLabel.textContent = "Memproses data Excel...";
+        progressFill.style.width = "35%";
+
+        // Cari kolom koordinat via auto-detect
+        const lonCol = findCoordColumn(excelHeaders, LON_PATTERNS);
+        const latCol = findCoordColumn(excelHeaders, LAT_PATTERNS);
+
+        // Gunakan selectedVars (dari user) sebagai variable
+        const varHeaders = selectedVars.slice(0, 5);
+
+        // Konversi ke format yang dikirim ke Apps Script
+        const excelRows = excelData.map(row => ({
+          longitude: parseFloat(row[lonCol] || 0),
+          latitude: parseFloat(row[latCol] || 0),
+          variables: varHeaders.map(h => ({
+            name: h,
+            value: String(row[h] ?? "")   // Freetext — bisa angka atau teks
+          }))
+        }));
+
+        // ── Step 3: Bangun payload ──
+        progressLabel.textContent = "Mengirim data ke server...";
+        progressFill.style.width = "55%";
+
+        const payload = {
+          email: document.getElementById("f-email").value.trim(),
+          upload_date: document.getElementById("f-date").value,
+          country: document.getElementById("f-country").value.trim().toUpperCase(),
+          province: document.getElementById("f-province").value.trim().toUpperCase(),
+          city: document.getElementById("f-city").value.trim().toUpperCase(),
+          pdf_filename: pdfFile.name,
+          pdf_base64: pdfBase64,
+          excel_rows: excelRows
+        };
+
+        // ── Step 4: POST ke Apps Script ──
+        // Content-Type: text/plain menghindari CORS preflight
+        // sehingga response bisa dibaca langsung
+        progressFill.style.width = "70%";
+        const response = await fetch(UPLOAD_API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify(payload)
+        });
+
+        progressFill.style.width = "90%";
+        const result = await response.json();
+
+        progressFill.style.width = "100%";
+        progressLabel.textContent = "Selesai!";
+
+        if (result.success) {
+          showSuccess(result);
+          progressWrap.style.display = "none";
+          btn.innerHTML = "✅ Upload Berhasil"
+          btn.disabled = true;
+        } else {
+          throw new Error(result.error || "Upload gagal");
+        }
+
+      } catch (err) {
+        console.error("Upload error:", err);
+        showToast("❌ Upload gagal: " + err.message, "error", 5000);
+        progressLabel.textContent = "❌ Gagal";
+        progressFill.style.background = "#ef4444";
+        btn.disabled = false;
+        btn.innerHTML = "📤 Coba Lagi";
+      }
+    }
+
+    // ════════════════════════════════════════════════
+    // TAMPILKAN HASIL SUKSES
+    // ════════════════════════════════════════════════
+    function showSuccess(result) {
+      const card = document.getElementById("result-card");
+      card.style.display = "block";
+      card.style.textAlign = "center";
+      card.style.marginTop = "1.5rem";
+      card.innerHTML = `
+      <div style="font-size:3rem;margin-bottom:.75rem;">🎉</div>
+      <div style="font-size:1.3rem;font-weight:800;margin-bottom:.5rem;">Upload Berhasil!</div>
+      <div class="muted" style="margin-bottom:1.25rem;font-size:.9rem;">Data Anda telah tersimpan di Bentala Nusantara</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.75rem;max-width:500px;margin:0 auto 1.5rem;text-align:center;">
+        <div style="background:var(--krem);border-radius:10px;padding:.85rem;">
+          <div style="font-size:1.4rem;font-weight:800;">${result.pdf_id}</div>
+          <div style="font-size:.75rem;color:var(--muted);">ID PDF</div>
+        </div>
+        <div style="background:var(--krem);border-radius:10px;padding:.85rem;">
+          <div style="font-size:1.1rem;font-weight:800;">${result.city_increment_name}</div>
+          <div style="font-size:.75rem;color:var(--muted);">City Increment</div>
+        </div>
+        <div style="background:var(--krem);border-radius:10px;padding:.85rem;">
+          <div style="font-size:1.4rem;font-weight:800;">${result.excel_rows_saved.toLocaleString()}</div>
+          <div style="font-size:.75rem;color:var(--muted);">Baris Koordinat</div>
+        </div>
+      </div>
+      ${result.pdf_link ? `
+        <a href="${result.pdf_link}" target="_blank"
+          style="display:inline-flex;align-items:center;gap:.4rem;background:var(--accent);color:var(--bg);padding:.55rem 1.2rem;border-radius:999px;font-weight:700;font-size:.85rem;text-decoration:none;margin-bottom:.75rem;">
+          📄 Lihat PDF di Google Drive
+        </a><br>
+      ` : ""}
+      <button class="btn-outline" onclick="resetForm()" style="margin-top:.5rem;">
+        ➕ Upload Data Baru
+      </button>
+    `;
+      card.scrollIntoView({ behavior: "smooth", block: "center" });
+      showToast("🎉 Upload berhasil!", "success", 4000);
+    }
+
+    // ════════════════════════════════════════════════
+    // RESET FORM
+    // ════════════════════════════════════════════════
+    function resetForm() {
+      pdfFile = null; excelFile = null; excelData = []; excelHeaders = []; hasLatLng = false; selectedVars = [];
+
+      document.getElementById("f-email").value = "";
+      document.getElementById("f-date").value = new Date().toISOString().split("T")[0];
+      document.getElementById("f-country").value = "";
+      document.getElementById("f-province").value = "";
+      document.getElementById("f-city").value = "";
+      document.getElementById("pdf-input").value = "";
+      document.getElementById("excel-input").value = "";
+
+      document.getElementById("pdf-zone").className = "upload-zone";
+      document.getElementById("excel-zone").className = "upload-zone";
+      document.getElementById("pdf-zone-text").textContent = "Klik untuk pilih file PDF";
+      document.getElementById("excel-zone-text").textContent = "Klik untuk pilih file Excel";
+      document.getElementById("pdf-info").style.display = "none";
+      document.getElementById("excel-summary").style.display = "none";
+      document.getElementById("excel-validation").style.display = "none";
+      document.getElementById("preview-card").style.display = "none";
+      document.getElementById("result-card").style.display = "none";
+      document.getElementById("progress-wrap").style.display = "none";
+      document.getElementById("progress-fill").style.width = "0%";
+      document.getElementById("progress-fill").style.background = "var(--accent)";
+
+      const btn = document.getElementById("submit-btn");
+      btn.disabled = true;
+      btn.innerHTML = "📤 Upload Data";
+      setStep(1);
+      checkReady();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    // Init
+    checkReady();
+  </script>
+</body>
+
+</html>

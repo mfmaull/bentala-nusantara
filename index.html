@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Bentala Nusantara | WebGIS Minimalist — Modern</title>
+  <title>Bentala Nusantara | Geospatial Early Warning Platform</title>
 
   <!-- Tailwind (utility) -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -21,9 +21,10 @@
   <script defer src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
 
   <!-- Font -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet" />
 
-  <meta name="description" content="Bentala Nusantara — WebGIS minimalis, modern, dan compact.">
+  <meta name="description"
+    content="Bentala Nusantara — Platform early warning geospasial nasional. Monitoring gempa, cuaca, risiko longsor, dan partisipasi data.">
 
   <style>
     /* ===========================
@@ -157,6 +158,10 @@
       font-weight: 600
     }
 
+    .btn-outline:hover {
+      background: var(--glass);
+    }
+
     /* ===========================
        GLASS CARD
        =========================== */
@@ -215,17 +220,56 @@
     }
 
     /* ===========================
-       EXPLORE CARDS
+       FEATURE CARDS GRID
        =========================== */
-    .explore-grid {
+    .feature-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 1rem
     }
 
-    .explore-item {
-      padding: 1.1rem;
-      border-radius: 10px
+    .feature-card {
+      padding: 1.5rem;
+      border-radius: var(--radius);
+      display: flex;
+      flex-direction: column;
+      gap: .75rem;
+    }
+
+    .feature-card .icon-wrap {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+    }
+
+    /* ===========================
+       HIGHLIGHT SECTION
+       =========================== */
+    .highlight-banner {
+      padding: 2.5rem 2rem;
+      border-radius: var(--radius);
+      background: var(--card);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-soft);
+    }
+
+    /* ===========================
+       DATA SOURCE GRID
+       =========================== */
+    .source-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem
+    }
+
+    .source-item {
+      padding: 1.25rem;
+      border-radius: 10px;
+      text-align: center;
     }
 
     /* ===========================
@@ -338,8 +382,13 @@
         font-size: 1.4rem
       }
 
-      .explore-grid {
+      .feature-grid {
         grid-template-columns: 1fr;
+        gap: .8rem
+      }
+
+      .source-grid {
+        grid-template-columns: repeat(2, 1fr);
         gap: .8rem
       }
 
@@ -371,6 +420,10 @@
       .glass:hover {
         transform: none;
         box-shadow: var(--shadow-soft)
+      }
+
+      .highlight-banner {
+        padding: 1.5rem 1rem;
       }
     }
 
@@ -518,7 +571,7 @@
     }
 
     /* ===========================
-       SHAKEMAP BUTTON (MIRIP "LIHAT CUACA")
+       SHAKEMAP BUTTON
        =========================== */
     .shakemap-btn {
       background: black;
@@ -526,22 +579,24 @@
       padding: 0.6rem 1.4rem;
       border-radius: 8px;
       font-weight: 600;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
       transition: background 0.2s ease;
       border: none;
       cursor: pointer;
     }
+
     .shakemap-btn:hover {
       background: #1f2937;
     }
 
     /* ===========================
-       SHAKEMAP CONTAINER (DI BAWAH TOMBOL) - TENGAH
+       SHAKEMAP CONTAINER
        =========================== */
     #shakemap-container {
       margin-top: 1rem;
       text-align: center;
     }
+
     #shakemap-img {
       display: block;
       margin: 0 auto;
@@ -551,6 +606,7 @@
       box-shadow: var(--shadow-soft);
       border: 1px solid var(--border);
     }
+
     #shakemap-source {
       font-size: 0.8rem;
       color: var(--muted);
@@ -562,15 +618,11 @@
       margin-bottom: 0.5rem;
     }
 
-    /* ===========================
-       PERTAHANKAN WARNA HITAM PADA POPUP
-       =========================== */
     .maplibregl-popup-content {
       color: #000000 !important;
       background: #ffffff !important;
       box-shadow: none !important;
     }
-    /* Panel info gempa akan mengikuti tema secara otomatis */
   </style>
 </head>
 
@@ -584,14 +636,15 @@
         <div class="mark" aria-hidden="true">📍</div>
         <div>
           <div class="title">Bentala Nusantara</div>
-          <div class="subtitle muted">WebGIS • Minimalist • Modern</div>
+          <div class="subtitle muted">Geospatial Early Warning Platform</div>
         </div>
       </div>
 
       <nav class="nav hidden md:flex items-center gap-6">
         <a href="#home" class="muted">Beranda</a>
-        <a href="#map-canvas" class="muted">My Map</a>
-        <a href="#portfolio" class="muted">Portfolio</a>
+        <a href="map.html" class="muted">Map</a>
+        <a href="early-warning.html" class="muted">Early Warning</a>
+        <a href="upload.html" class="muted">Upload</a>
       </nav>
 
       <div class="flex items-center gap-3">
@@ -605,40 +658,49 @@
        HERO SECTION
        =========================== -->
   <section id="home" class="hero container" data-aos="fade-up">
-    <h1>Eksplorasi Nusantara</h1>
-    <p class="muted">Temukan data geospasial terkini dengan peta interaktif masa kini</p>
-    <div class="mt-4 flex justify-center gap-3 hero-actions">
-      <a href="#map-canvas" id="btn-scroll-map" class="btn-primary">🌎 Lihat Peta</a>
-      <a href="#portfolio" class="btn-outline">📁 Portfolio</a>
+    <h1>Geospatial Intelligence<br>untuk Nusantara</h1>
+    <p class="muted max-w-xl mx-auto">Temukan data geospasial terkini dengan peta interaktif masa kini</p>
+    <div class="mt-5 flex justify-center gap-3 hero-actions flex-wrap">
+      <a href="map.html" class="btn-primary">🗺️ Explore Map</a>
+      <a href="early-warning.html" class="btn-primary"
+        style="background:transparent;color:var(--fg);border:1px solid var(--border);">⚠️ View Early Warning</a>
     </div>
   </section>
 
   <!-- ===========================
-       EXPLORE CARDS
+       FEATURE HUB (COMMAND CENTER)
        =========================== -->
-  <section class="container mb-6" aria-hidden="false">
-    <div class="explore-grid" data-aos="fade-up" data-aos-delay="120">
-      <div class="glass explore-item">
-        <div class="flex items-center gap-3 mb-3">
-          <div class="w-10 h-10 rounded-full flex items-center justify-center" style="background:var(--krem)">🗺️</div>
-          <div class="font-semibold">Pemetaan Interaktif</div>
+  <section class="container mb-8" data-aos="fade-up" data-aos-delay="100">
+    <div class="feature-grid">
+      <a href="map.html" class="glass feature-card">
+        <div class="icon-wrap" style="background:var(--krem)">🗺️</div>
+        <div>
+          <div class="font-semibold">Interactive Map</div>
+          <p class="muted text-sm mt-1">Peta interaktif dengan layer gempa, cuaca, populasi, dan Vs30. Dilengkapi data
+            real-time dari BMKG.</p>
         </div>
-        <p class="muted text-sm">Layer, popup, marker, dan integrasi data real-time.</p>
-      </div>
-      <div class="glass explore-item">
-        <div class="flex items-center gap-3 mb-3">
-          <div class="w-10 h-10 rounded-full flex items-center justify-center" style="background:var(--krem)">📚</div>
-          <div class="font-semibold">Database Geospasial</div>
+        <span class="text-sm font-semibold" style="color:var(--muted)">Explore →</span>
+      </a>
+
+      <a href="early-warning.html" class="glass feature-card">
+        <div class="icon-wrap" style="background:var(--krem)">⚠️</div>
+        <div>
+          <div class="font-semibold">Early Warning Dashboard</div>
+          <p class="muted text-sm mt-1">Monitoring risiko longsor nasional berbasis curah hujan NOAA, kelembaban tanah,
+            dan layer administratif.</p>
         </div>
-        <p class="muted text-sm">GeoJSON / PostGIS-ready untuk analisis & visualisasi.</p>
-      </div>
-      <div class="glass explore-item">
-        <div class="flex items-center gap-3 mb-3">
-          <div class="w-10 h-10 rounded-full flex items-center justify-center" style="background:var(--krem)">⚙️</div>
-          <div class="font-semibold">Geoprocessing Online</div>
+        <span class="text-sm font-semibold" style="color:var(--muted)">View Dashboard →</span>
+      </a>
+
+      <a href="upload.html" class="glass feature-card">
+        <div class="icon-wrap" style="background:var(--krem)">📤</div>
+        <div>
+          <div class="font-semibold">Upload Data</div>
+          <p class="muted text-sm mt-1">Partisipasi data geospasial — unggah file Excel/CSV/PDF untuk memperkaya dataset
+            kolektif.</p>
         </div>
-        <p class="muted text-sm">Buffering, clipping, hotspot analysis via Turf.js.</p>
-      </div>
+        <span class="text-sm font-semibold" style="color:var(--muted)">Upload →</span>
+      </a>
     </div>
   </section>
 
@@ -678,12 +740,69 @@
   </div>
 
   <!-- Tombol Lihat Cuaca -->
-  <div class="text-center mt-4">
+  <div class="text-center mb-8">
     <button id="open-weather-modal"
       class="bg-black text-white px-6 py-2 rounded-lg shadow hover:bg-gray-700 transition font-medium">
       🌤️ Lihat Cuaca Realtime
     </button>
   </div>
+
+  <!-- ===========================
+       HIGHLIGHT SECTION (EARLY WARNING SPOTLIGHT)
+       =========================== -->
+  <section class="container mb-8" data-aos="fade-up">
+    <div class="highlight-banner flex flex-col md:flex-row items-center gap-6 md:gap-10">
+      <div class="w-16 h-16 rounded-full flex items-center justify-center flex-shrink-0"
+        style="background:linear-gradient(135deg, var(--krem), #e8d5b0); font-size:2rem;">⚠️</div>
+      <div class="flex-1 text-center md:text-left">
+        <h3 class="text-xl font-bold">Early Warning — Risiko Longsor</h3>
+        <p class="muted text-sm mt-2 leading-relaxed">Dashboard monitoring longsor yang menggabungkan data curah hujan
+          real-time dari <strong>NOAA Open-Meteo</strong>, kelembaban tanah, dan layer administratif
+          <strong>GADM</strong>. Dikombinasikan dengan data gempa <strong>BMKG</strong> untuk analisis multi-bencana.
+        </p>
+        <div class="mt-3 flex gap-3 justify-center md:justify-start">
+          <a href="early-warning.html" class="btn-primary">🔍 Buka Dashboard</a>
+          <a href="#data-sources" class="btn-outline">Sumber Data</a>
+        </div>
+      </div>
+      <div class="flex-shrink-0 text-center">
+        <div class="text-3xl font-black" style="color:var(--accent)">NOAA</div>
+        <div class="text-xs muted">+ BMKG</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===========================
+       DATA SOURCES SECTION
+       =========================== -->
+  <section id="data-sources" class="container mb-8" data-aos="fade-up">
+    <div class="text-center mb-5">
+      <h3 class="text-lg font-semibold">Sumber Data Terpercaya</h3>
+      <p class="muted text-sm">Data real-time dan statistik dari institusi global dan nasional</p>
+    </div>
+    <div class="source-grid">
+      <div class="glass source-item">
+        <div class="text-2xl mb-2">🌏</div>
+        <div class="font-semibold">BMKG</div>
+        <div class="muted text-xs mt-1">Gempa bumi, cuaca, peringatan dini tsunami</div>
+      </div>
+      <div class="glass source-item">
+        <div class="text-2xl mb-2">🌤️</div>
+        <div class="font-semibold">NOAA / Open-Meteo</div>
+        <div class="muted text-xs mt-1">Curah hujan, suhu, kelembaban, angin</div>
+      </div>
+      <div class="glass source-item">
+        <div class="text-2xl mb-2">👥</div>
+        <div class="font-semibold">WorldPop</div>
+        <div class="muted text-xs mt-1">Data populasi global resolusi tinggi</div>
+      </div>
+      <div class="glass source-item">
+        <div class="text-2xl mb-2">🗺️</div>
+        <div class="font-semibold">GADM</div>
+        <div class="muted text-xs mt-1">Batas administratif Indonesia (provinsi, kabupaten)</div>
+      </div>
+    </div>
+  </section>
 
   <!-- ===========================
        MAP SECTION
@@ -713,19 +832,13 @@
       </div>
     </div>
 
-    <!-- TOMBOL SHAKEMAP (DI BAWAH PETA) -->
     <div class="container text-center mt-4">
-      <button id="toggle-shakemap-btn" class="shakemap-btn">
-        🗺️ Tampilkan Shakemap
-      </button>
+      <button id="toggle-shakemap-btn" class="shakemap-btn">🗺️ Tampilkan Shakemap</button>
     </div>
 
-    <!-- KONTAINER SHAKEMAP (DI BAWAH TOMBOL) -->
     <div class="container text-center" id="shakemap-container" style="display: none;">
-      <img id="shakemap-img" src="" alt="Shakemap BMKG" style="max-height: 500px;">
-      <div id="shakemap-source" class="muted">
-        Sumber: Badan Meteorologi, Klimatologi, dan Geofisika (BMKG)
-      </div>
+      <img id="shakemap-img" src="" alt="BMKG Shakemap" style="max-height: 500px;">
+      <div id="shakemap-source" class="muted">Sumber: Badan Meteorologi, Klimatologi, dan Geofisika (BMKG)</div>
     </div>
   </section>
 
@@ -803,7 +916,17 @@
   <!-- ===========================
        FOOTER
        =========================== -->
-  <footer class="py-6 text-center muted border-t">© 2025 Bentala Nusantara</footer>
+  <footer class="py-8 border-t">
+    <div class="container">
+      <div class="flex flex-col md:flex-row items-center justify-between gap-4">
+        <div class="text-center md:text-left">
+          <div class="font-semibold">Bentala Nusantara</div>
+          <div class="text-sm muted">Geospatial Early Warning Platform</div>
+        </div>
+        <div class="text-sm muted">© 2025 Bentala Nusantara</div>
+      </div>
+    </div>
+  </footer>
 
   <!-- ===========================
        BOTTOM NAVIGATION (MOBILE)
@@ -820,7 +943,7 @@
   <!-- ===========================
        KONFIGURASI API (DIPISAH)
        =========================== -->
-  <script src="config.js"></script>
+  <script src="config.js" onerror="console.warn('config.js tidak ditemukan — fallback ke /api/env')"></script>
   <script>
     // Fallback jika config.js tidak ada (untuk development / setelah clone)
     window.CONFIG = window.CONFIG || {
@@ -828,11 +951,25 @@
       MAP_SERVICE_KEY: 'YOUR_MAP_SERVICE_KEY'
     };
 
+    // Override dengan Vercel env vars (untuk production — dieksekusi async)
+    (async function () {
+      try {
+        const resp = await fetch('/api/env');
+        if (resp.ok) {
+          const env = await resp.json();
+          if (env.OPENWEATHER_API_KEY) window.CONFIG.OPENWEATHER_API_KEY = env.OPENWEATHER_API_KEY;
+          if (env.MAP_SERVICE_KEY) window.CONFIG.MAP_SERVICE_KEY = env.MAP_SERVICE_KEY;
+        }
+      } catch (e) {
+        // development lokal — abaikan
+      }
+    })();
+
     // ===========================
     // KONFIGURASI API LAINNYA
     // ===========================
-    const BMKG_GEMPA_URL = 'https://data.bmkg.go.id/DataMKG/TEWS/autogempa.json';
-    const BMKG_SHAKEMAP_BASE = 'https://data.bmkg.go.id/DataMKG/TEWS/';
+    const GEMPA_API_URL = 'https://mfmaull-bentala-nusantara-api.hf.space/api/gempa';
+    const GEMPA_SHAKEMAP_IMAGE_URL = 'https://mfmaull-bentala-nusantara-api.hf.space/api/shakemap-image';
     const DEFAULT_LAT = -6.1754;
     const DEFAULT_LON = 106.8271;
 
@@ -841,21 +978,10 @@
     const MAP_SERVICE_KEY = window.CONFIG.MAP_SERVICE_KEY;
 
     // ===========================
-    // CACHE GEMPA (FRONTEND)
+    // STATE (HANYA UNTUK MENCEGAH REQUEST GANDA & DATA AKTIF)
     // ===========================
-    const earthquakeCache = {
-      data: null,
-      bmkgDateTime: null,
-      fetchedAt: null
-    };
     let isFetchingGempa = false;
     let currentGempaData = null;
-
-    function isCacheValid() {
-      if (!earthquakeCache.data || !earthquakeCache.bmkgDateTime) return false;
-      const now = new Date();
-      return (now - earthquakeCache.bmkgDateTime) < 60000;
-    }
 
     // ===========================
     // WEATHER & USER LOCATION
@@ -982,7 +1108,7 @@
     function setTheme(t) {
       htmlEl.setAttribute('data-theme', t);
       themeToggle.textContent = t === 'dark' ? 'Light' : 'Dark';
-      try { localStorage.setItem('bn_theme', t); } catch (e) {}
+      try { localStorage.setItem('bn_theme', t); } catch (e) { }
     }
     (function initTheme() {
       try {
@@ -1051,7 +1177,6 @@
             loader.style.opacity = '0';
             setTimeout(() => loader?.remove(), 450);
           }
-          // Tunggu hingga koordinat pengguna tersedia, lalu panggil fetchEarthquake
           if (currentWeatherCoords.lat !== DEFAULT_LAT || currentWeatherCoords.lon !== DEFAULT_LON) {
             updateUserLocationMarker(currentWeatherCoords.lat, currentWeatherCoords.lon);
             fetchEarthquake();
@@ -1087,14 +1212,9 @@
     }
 
     // ===========================
-    // FETCH GEMPA DENGAN CACHE 1 MENIT
+    // FETCH GEMPA (BACKEND HANDLES CACHE)
     // ===========================
     async function fetchEarthquake() {
-      if (isCacheValid()) {
-        console.log('[GEMPA] Menggunakan data dari cache');
-        processEarthquakeData(earthquakeCache.data);
-        return;
-      }
       if (isFetchingGempa) return;
       isFetchingGempa = true;
 
@@ -1102,17 +1222,9 @@
       if (ql) ql.classList.remove('hidden');
 
       try {
-        const res = await fetch(BMKG_GEMPA_URL);
-        if (!res.ok) throw new Error('Gagal mengambil data gempa dari BMKG');
+        const res = await fetch(GEMPA_API_URL);
+        if (!res.ok) throw new Error('Gagal mengambil data gempa dari server');
         const data = await res.json();
-        const q = data?.Infogempa?.gempa;
-        if (!q || !q.Coordinates) throw new Error('Data gempa tidak valid');
-
-        const bmkgTimeStr = q.DateTime;
-        earthquakeCache.data = data;
-        earthquakeCache.bmkgDateTime = bmkgTimeStr ? new Date(bmkgTimeStr.replace('Z', '+00:00')) : new Date();
-        earthquakeCache.fetchedAt = new Date();
-        console.log('[GEMPA] Data disimpan ke cache. Waktu BMKG:', earthquakeCache.bmkgDateTime);
         processEarthquakeData(data);
       } catch (err) {
         console.error('[GEMPA ERROR]', err);
@@ -1161,7 +1273,6 @@
           <div><strong>📢</strong> ${q.Potensi}</div>
         </div>`;
       if (qc) {
-        // Biarkan teks mengikuti tema
         qc.innerHTML = popupHTML.replace('color:#000', '');
       }
 
@@ -1190,7 +1301,6 @@
         .addTo(mapInstance)
         .togglePopup();
 
-      // === PERBAIKAN NAVIGASI PETA ===
       const userLat = currentWeatherCoords.lat || DEFAULT_LAT;
       const userLon = currentWeatherCoords.lon || DEFAULT_LON;
 
@@ -1225,8 +1335,9 @@
         alert('Data shakemap belum tersedia. Harap tunggu data gempa termuat.');
         return;
       }
-      const shakeUrl = BMKG_SHAKEMAP_BASE + currentGempaData.shakemap;
+      const shakeUrl = `${GEMPA_SHAKEMAP_IMAGE_URL}?file=${encodeURIComponent(currentGempaData.shakemap)}`;
       console.log('[SHAKEMAP URL]', shakeUrl);
+
       shakemapImg.src = shakeUrl;
       shakemapContainer.style.display = 'block';
       shakemapVisible = true;
@@ -1257,18 +1368,14 @@
       window.addEventListener('load', createMap);
     }
 
-    document.getElementById('btn-scroll-map').addEventListener('click', () => {
-      createMap();
-    });
-
     setTimeout(() => {
       if (!mapInstance) handleMapError();
     }, 6000);
 
     // ===========================
-    // KOMENTAR (CRUD VIA MOCKAPI)
+    // KOMENTAR (VIA GOOGLE SHEETS + APPS SCRIPT)
     // ===========================
-    const API_ENDPOINT = "https://68d145ade6c0cbeb39a42e48.mockapi.io/webgis/saran/v1/";
+    const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbwR6kA0E7vImDPsPoYB-v4AggzCqv6OKNYYPbJIT-6i1aob1fHYQ25Yqzv4FRb1Fwd9/exec";
     const commentForm = document.getElementById('comment-form');
     const commentInput = document.getElementById('comment-input');
     const nameInput = document.getElementById('comment-name');
@@ -1290,18 +1397,19 @@
     function escapeHtml(unsafe) {
       if (!unsafe && unsafe !== 0) return '';
       return String(unsafe)
-        .replaceAll('&', '&amp;')
-        .replaceAll('<', '&lt;')
-        .replaceAll('>', '&gt;')
-        .replaceAll('"', '&quot;')
+        .replaceAll('&', '&')
+        .replaceAll('<', '<')
+        .replaceAll('>', '>')
+        .replaceAll('"', '"')
         .replaceAll("'", '&#039;');
     }
 
     async function fetchComments() {
       try {
-        const res = await fetch(API_ENDPOINT + "?sortBy=id&order=desc");
+        const res = await fetch(API_ENDPOINT);
         if (!res.ok) throw new Error('Network response not ok: ' + res.status);
         const data = await res.json();
+        if (data.error) throw new Error(data.error);
         allComments = data;
         renderComments();
       } catch (err) {
@@ -1383,18 +1491,13 @@
       emailInput.value = '';
 
       try {
-        const resp = await fetch(API_ENDPOINT, {
+        await fetch(API_ENDPOINT, {
           method: 'POST',
+          mode: 'no-cors',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
-        if (!resp.ok) {
-          console.error('POST failed', resp.status);
-          alert('Gagal mengirim komentar ke server. Ditampilkan lokal.');
-          fetchComments();
-        } else {
-          fetchComments();
-        }
+        setTimeout(() => fetchComments(), 2000);
       } catch (err) {
         console.error('Post error', err);
         alert('Gagal mengirim komentar. Periksa koneksi.');

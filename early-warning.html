@@ -1,0 +1,1569 @@
+<!DOCTYPE html>
+<html lang="id" class="scroll-smooth" data-theme="light">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="description"
+        content="Indonesia Landslide Early Warning Dashboard — Monitoring risiko longsor nasional berbasis data curah hujan, kelembaban tanah, terrain, dan layer administratif GADM." />
+    <title>Bentala Nusantara | Landslide Early Warning Dashboard</title>
+    <script src="https://cdn.tailwindcss.com">
+    </script>
+    <link href="https://unpkg.com/maplibre-gl@^5.7.3/dist/maplibre-gl.css" rel="stylesheet" />
+    <script src="https://unpkg.com/maplibre-gl@^5.7.3/dist/maplibre-gl.js">
+    </script>
+    <script src="https://unpkg.com/@turf/turf@6/turf.min.js">
+    </script>
+    <style>
+        :root {
+            --bg: #ffffff;
+            --fg: #0b0b0b;
+            --krem: #f3ead7;
+            --muted: #6f6f6f;
+            --card: #fbf9f6;
+            --border: #ece7df;
+            --glass: rgba(11, 11, 11, 0.04);
+            --accent: #0b0b0b;
+            --radius: 12px;
+            --shadow-soft: 0 8px 20px rgba(11, 11, 11, 0.06);
+            --smooth: 300ms;
+            --low: #4ade80;
+            --medium: #facc15;
+            --high: #ef4444;
+            --unknown: #cbd5e1;
+        }
+
+        [data-theme="dark"] {
+            --bg: #0a0a0a;
+            --fg: #f5f5f5;
+            --krem: #322b23;
+            --muted: #bdbdbd;
+            --card: #141414;
+            --border: #222;
+            --glass: rgba(255, 255, 255, 0.03);
+            --accent: #f5f5f5;
+            --shadow-soft: 0 10px 30px rgba(0, 0, 0, 0.6);
+        }
+
+        html,
+        body {
+            min-height: 100%;
+            margin: 0;
+            font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+            background: var(--bg);
+            color: var(--fg);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin-left: auto;
+            margin-right: auto;
+            padding-left: 1rem;
+            padding-right: 1rem;
+        }
+
+        header {
+            position: sticky;
+            top: 0;
+            z-index: 60;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.65), rgba(255, 255, 255, 0.45));
+            border-bottom: 1px solid var(--border);
+            backdrop-filter: blur(6px);
+            transition: background var(--smooth), border-color var(--smooth);
+        }
+
+        [data-theme="dark"] header {
+            background: linear-gradient(180deg, rgba(10, 10, 10, 0.8), rgba(10, 10, 10, 0.7));
+        }
+
+        .logo {
+            display: flex;
+            gap: .6rem;
+            align-items: center;
+        }
+
+        .mark {
+            width: 44px;
+            height: 44px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--border);
+            background: linear-gradient(180deg, var(--card), #fff);
+            box-shadow: var(--shadow-soft);
+            font-weight: 800;
+        }
+
+        [data-theme="dark"] .mark {
+            background: linear-gradient(180deg, var(--card), #1f1f1f);
+        }
+
+        .title {
+            font-weight: 700;
+            font-size: 1rem;
+        }
+
+        .subtitle,
+        .muted {
+            color: var(--muted);
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: var(--bg);
+            padding: .5rem .9rem;
+            border-radius: 999px;
+            font-weight: 600;
+            display: inline-flex;
+            gap: .5rem;
+            align-items: center;
+            box-shadow: 0 6px 18px rgba(11, 11, 11, 0.06);
+            transition: transform .18s ease, box-shadow .18s ease;
+            border: 1px solid rgba(0, 0, 0, 0.04);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-3px);
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: var(--fg);
+            padding: .46rem .8rem;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            font-weight: 600;
+        }
+
+        .glass {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-soft);
+            transition: transform var(--smooth), box-shadow var(--smooth), border-color var(--smooth);
+        }
+
+        .glass:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 14px 40px rgba(11, 11, 11, 0.08);
+        }
+
+        .panel {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            box-shadow: var(--shadow-soft);
+        }
+
+        .hero {
+            padding: 2.4rem 0 1.4rem;
+        }
+
+        .hero h1 {
+            font-size: clamp(1.8rem, 5vw, 3.2rem);
+            margin: 0;
+            line-height: 1.04;
+            font-weight: 800;
+            max-width: 780px;
+        }
+
+        .focus-ring:focus-visible {
+            outline: 3px solid rgba(11, 11, 11, 0.24);
+            outline-offset: 3px;
+        }
+
+        .metric {
+            min-height: 118px;
+        }
+
+        .metric:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 14px 40px rgba(11, 11, 11, 0.08);
+        }
+
+        .risk-badge {
+            border-radius: 999px;
+            padding: .26rem .58rem;
+            font-size: .72rem;
+            font-weight: 800;
+            border: 1px solid var(--border);
+            white-space: nowrap;
+        }
+
+        .risk-low {
+            background: #dcfce7;
+            color: #14532d;
+            border-color: #86efac;
+        }
+
+        .risk-medium {
+            background: #fef3c7;
+            color: #713f12;
+            border-color: #facc15;
+        }
+
+        .risk-high {
+            background: #fee2e2;
+            color: #7f1d1d;
+            border-color: #fca5a5;
+        }
+
+        .risk-unknown {
+            background: #e5e7eb;
+            color: #374151;
+            border-color: #cbd5e1;
+        }
+
+        #warning-map {
+            width: 100%;
+            height: min(80vh, 800px);
+            min-height: 560px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            overflow: hidden;
+            background: var(--card);
+        }
+
+        .map-wrap {
+            position: relative;
+        }
+
+        .terrain-control {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            z-index: 25;
+            background: rgba(255,255,255,0.92);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px;
+            min-width: 240px;
+            max-width: 280px;
+            box-shadow: 0 8px 24px rgba(0,0,0,.08);
+            backdrop-filter: blur(4px);
+        }
+
+        [data-theme="dark"] .terrain-control {
+            background: rgba(20,20,20,0.92);
+        }
+
+        .terrain-control label {
+            font-size: .72rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            color: var(--muted);
+            display: block;
+            margin-bottom: 6px;
+        }
+
+        .terrain-control select {
+            width: 100%;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 6px;
+            font-size: .82rem;
+            background: var(--bg);
+            color: var(--fg);
+            min-height: 80px;
+            max-height: 180px;
+        }
+
+        .terrain-control .counter {
+            font-size: .78rem;
+            font-weight: 600;
+            color: var(--muted);
+            margin: 6px 0;
+        }
+
+        .terrain-control .gen-btn {
+            width: 100%;
+            padding: 8px;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: .85rem;
+            border: none;
+            cursor: pointer;
+            background: var(--accent);
+            color: var(--bg);
+            transition: opacity .2s;
+        }
+
+        .terrain-control .gen-btn:disabled {
+            opacity: .4;
+            cursor: not-allowed;
+        }
+
+        .terrain-control .gen-btn:not(:disabled):hover {
+            opacity: .85;
+        }
+
+        .map-overlay {
+            position: absolute;
+            inset: 0;
+            z-index: 20;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(251, 249, 246, 0.82);
+            backdrop-filter: blur(8px);
+            border-radius: 12px;
+        }
+
+        [data-theme="dark"] .map-overlay {
+            background: rgba(20, 20, 20, 0.82);
+        }
+
+        .spinner {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            border: 4px solid var(--border);
+            border-top-color: var(--accent);
+            animation: spin .9s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .legend-dot {
+            width: 14px;
+            height: 14px;
+            border-radius: 4px;
+            border: 1px solid rgba(0, 0, 0, .18);
+            flex: 0 0 auto;
+        }
+
+        .control-label {
+            display: block;
+            margin-bottom: .35rem;
+            font-size: .72rem;
+            font-weight: 800;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: .08em;
+        }
+
+        .select-control {
+            width: 100%;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: .58rem .7rem;
+            background: var(--bg);
+            color: var(--fg);
+            font-weight: 600;
+        }
+
+        .list-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: .75rem;
+            align-items: center;
+            padding: .85rem 0;
+            border-bottom: 1px solid var(--border);
+            text-align: left;
+            width: 100%;
+        }
+
+        .list-row:last-child {
+            border-bottom: 0;
+        }
+
+        .slope-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 4px;
+        }
+
+        /* ===== POPUP ===== */
+        .maplibregl-popup {
+            max-width: 440px !important;
+        }
+
+        .maplibregl-popup-content {
+            border-radius: 12px;
+            padding: 0;
+            overflow: hidden;
+            color: #0b0b0b;
+            box-shadow: 0 18px 40px rgba(0, 0, 0, .18);
+            width: max-content;
+            min-width: 320px;
+            max-width: 420px;
+        }
+
+        .popup-card header {
+            background: #0b0b0b;
+            color: #fff;
+            padding: .75rem 1rem;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            gap: 0.1rem;
+        }
+
+        .popup-close-btn {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.6rem;
+            background: rgba(255, 255, 255, 0.15);
+            border: none;
+            color: #fff;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+            transition: background 0.2s ease;
+            padding: 0;
+        }
+
+        .popup-close-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .popup-card dl {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: .4rem 1rem;
+            padding: .75rem 1rem;
+            font-size: .82rem;
+        }
+
+        .popup-card dt {
+            font-weight: 600;
+            color: var(--muted);
+            white-space: nowrap;
+        }
+
+        .popup-card dd {
+            margin: 0;
+            text-align: right;
+            font-weight: 700;
+        }
+
+        .popup-card .popup-divider {
+            grid-column: 1 / -1;
+            border-top: 1px solid var(--border);
+            margin: .15rem 0;
+        }
+
+        .popup-card .risk-label-inline {
+            display: inline-block;
+            border-radius: 999px;
+            padding: 0.1rem 0.5rem;
+            font-size: 0.75rem;
+            font-weight: 800;
+        }
+
+        .terrain-stats {
+            display: flex;
+            flex-wrap: wrap;
+            gap: .25rem .75rem;
+            font-size: .75rem;
+        }
+
+        .terrain-stats span {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+        }
+
+        @media (max-width: 768px) {
+            .hero {
+                padding: 1.6rem 0 1rem;
+            }
+
+            header .nav {
+                display: none;
+            }
+
+            #warning-map {
+                height: 460px;
+                min-height: 460px;
+            }
+
+            .metric {
+                min-height: auto;
+            }
+
+            .maplibregl-popup {
+                max-width: 320px !important;
+            }
+
+            .maplibregl-popup-content {
+                min-width: 260px;
+                max-width: 320px;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                transition: none !important;
+                animation: none !important;
+                scroll-behavior: auto !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <div class="container flex items-center justify-between py-3">
+            <a href="index.html" class="logo focus-ring rounded-lg" aria-label="Kembali ke Beranda Bentala Nusantara">
+                <div class="mark" aria-hidden="true">📍</div>
+                <div>
+                    <div class="title">Bentala Nusantara</div>
+                    <div class="subtitle text-xs">Landslide Early Warning Dashboard</div>
+                </div>
+            </a>
+            <nav class="nav hidden md:flex items-center gap-6" aria-label="Navigasi utama">
+                <a href="index.html" class="muted">Beranda</a>
+                <a href="map.html" class="muted">GeoMaps</a>
+            </nav>
+            <div class="flex items-center gap-3">
+                <button id="theme-toggle" class="glass px-3 py-1 text-sm focus-ring" type="button">Dark</button>
+                <button id="refresh-btn" class="btn-primary focus-ring" type="button">Perbarui</button>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <section class="hero container">
+            <div class="grid gap-5 lg:grid-cols-[1fr_340px] lg:items-end">
+                <div>
+                    <div class="flex items-center gap-3 mb-3">
+                        <span class="risk-badge risk-high text-xs font-bold">Landslide Monitoring</span>
+                        <span class="muted text-xs">National Hazard Layer</span>
+                    </div>
+                    <h1>Indonesia Landslide Early Warning Dashboard</h1>
+                    <p class="muted mt-4 max-w-2xl leading-7">
+                        Pemantauan risiko longsor nasional — composite raster (terrain + risk overlay).
+                        Data diperbarui setiap jam.
+                    </p>
+                </div>
+                <aside class="glass p-4" aria-label="Status sumber data">
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <p class="control-label">Status Data</p>
+                            <p id="source-status" class="text-xl font-bold">Memuat</p>
+                        </div>
+                        <span id="status-badge" class="risk-badge risk-unknown">NOAA</span>
+                    </div>
+                    <p id="freshness" class="muted mt-3 text-sm leading-6">Menghubungkan ke backend Bentala Nusantara.
+                    </p>
+                </aside>
+            </div>
+        </section>
+
+        <section class="container mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-8" aria-label="Ringkasan nasional">
+            <article class="glass metric p-4">
+                <p class="control-label">Risiko Nasional</p>
+                <p id="national-risk" class="mt-2 text-2xl font-bold">-</p>
+                <p id="national-risk-note" class="muted mt-2 text-sm">Belum ada data.</p>
+            </article>
+            <article class="glass metric p-4">
+                <p class="control-label">Hazard Aktif</p>
+                <p id="active-hazards" class="mt-2 text-3xl font-bold">0</p>
+                <p class="muted mt-2 text-sm">Medium + High</p>
+            </article>
+            <article class="glass metric p-4">
+                <p class="control-label">Risiko Tinggi</p>
+                <p id="high-hazards" class="mt-2 text-3xl font-bold">0</p>
+                <p class="muted mt-2 text-sm">Kabupaten/kota</p>
+            </article>
+            <article class="glass metric p-4">
+                <p class="control-label">Provinsi Terdampak</p>
+                <p id="affected-provinces" class="mt-2 text-3xl font-bold">0</p>
+                <p class="muted mt-2 text-sm">Level medium+</p>
+            </article>
+            <article class="glass metric p-4">
+                <p class="control-label">Cakupan Pantau</p>
+                <p id="coverage-count" class="mt-2 text-3xl font-bold">0</p>
+                <p class="muted mt-2 text-sm">Wilayah GADM</p>
+            </article>
+            <article class="glass metric p-4">
+                <p class="control-label">BMKG Alert</p>
+                <p id="bmkg-alert-count" class="mt-2 text-3xl font-bold">0</p>
+                <p class="muted mt-2 text-sm">Peringatan aktif</p>
+            </article>
+            <article class="glass metric p-4">
+                <p class="control-label">Terrain Risk</p>
+                <p id="terrain-risk-count" class="mt-2 text-3xl font-bold">0</p>
+                <p class="muted mt-2 text-sm">Steep + BNPB high</p>
+            </article>
+            <article class="glass metric p-4">
+                <p class="control-label">Data Terakhir</p>
+                <p id="last-update-time" class="mt-2 text-lg font-bold">-</p>
+                <p class="muted mt-2 text-xs" id="data-source-label">Sumber data</p>
+            </article>
+        </section>
+
+        <section class="container pb-10 grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]"
+            aria-label="Peta hazard dan kontrol">
+            <div class="glass p-3 sm:p-4">
+                <div class="mb-4 flex flex-wrap items-end justify-between gap-3">
+                    <div>
+                        <h2 class="text-xl font-bold">Landslide Risk Layer</h2>
+                        <p id="map-message" class="muted mt-1 text-sm">
+                            Layer composite raster. Klik polygon untuk detail.
+                        </p>
+                    </div>
+                    <button id="reset-view" class="btn-outline focus-ring" type="button">Seluruh Indonesia</button>
+                </div>
+
+                <div class="map-wrap">
+                    <div class="terrain-control" id="terrain-control">
+                        <label for="kabupaten-select">Pilih Kabupaten (max 5)</label>
+                        <select id="kabupaten-select" multiple></select>
+                        <div class="counter" id="selected-count">0 / 5 selected</div>
+                        <button class="gen-btn" id="generate-btn" disabled>Generate Layer</button>
+                    </div>
+                    <div id="warning-map" role="region" aria-label="Peta layer hazard Indonesia"></div>
+                    <div id="map-loading" class="map-overlay" aria-live="polite">
+                        <div class="panel flex max-w-sm items-center gap-4 p-4">
+                            <div class="spinner" aria-hidden="true"></div>
+                            <div>
+                                <p class="font-bold">Memuat layer hazard</p>
+                                <p class="muted mt-1 text-sm">Mengambil composite raster dari backend.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4 grid gap-4 lg:grid-cols-[1fr_280px]">
+                    <div class="panel p-3">
+                        <p class="control-label">Filter Marker Risiko</p>
+                        <fieldset class="flex flex-wrap gap-3" aria-label="Filter marker berdasarkan level risiko">
+                            <label class="inline-flex items-center gap-2 text-sm font-semibold">
+                                <input class="marker-filter" type="checkbox" value="HIGH" checked />
+                                High
+                            </label>
+                            <label class="inline-flex items-center gap-2 text-sm font-semibold">
+                                <input class="marker-filter" type="checkbox" value="MEDIUM" />
+                                Medium
+                            </label>
+                            <label class="inline-flex items-center gap-2 text-sm font-semibold">
+                                <input class="marker-filter" type="checkbox" value="LOW" />
+                                Low
+                            </label>
+                        </fieldset>
+                    </div>
+                    <div class="panel p-3">
+                        <p class="control-label">Legenda Risiko Longsor</p>
+                        <div class="grid grid-cols-2 gap-2 text-sm font-semibold">
+                            <div class="flex items-center gap-2"><span class="legend-dot"
+                                    style="background:var(--high)"></span>High</div>
+                            <div class="flex items-center gap-2"><span class="legend-dot"
+                                    style="background:var(--medium)"></span>Medium</div>
+                            <div class="flex items-center gap-2"><span class="legend-dot"
+                                    style="background:var(--low)"></span>Low</div>
+                            <div class="flex items-center gap-2"><span class="legend-dot"
+                                    style="background:var(--unknown)"></span>No data</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <aside class="grid gap-5" aria-label="Kontrol dan widget dashboard">
+                <section class="glass p-4">
+                    <h2 class="text-lg font-bold">Filter Administratif</h2>
+                    <div class="mt-4 grid gap-3">
+                        <div>
+                            <label class="control-label" for="province-filter">Provinsi</label>
+                            <select id="province-filter" class="select-control focus-ring">
+                                <option value="all">Seluruh Indonesia</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="control-label" for="kabupaten-filter">Kabupaten/Kota</label>
+                            <select id="kabupaten-filter" class="select-control focus-ring" disabled>
+                                <option value="all">Pilih provinsi terlebih dahulu</option>
+                            </select>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="glass p-4">
+                    <h2 class="text-lg font-bold">National Risk Summary</h2>
+                    <div class="mt-4 grid grid-cols-3 gap-2 text-center">
+                        <div class="rounded-lg border border-[var(--border)] p-3">
+                            <p id="count-low" class="text-2xl font-bold">0</p>
+                            <p class="muted text-xs font-semibold">Low</p>
+                        </div>
+                        <div class="rounded-lg border border-[var(--border)] p-3">
+                            <p id="count-medium" class="text-2xl font-bold">0</p>
+                            <p class="muted text-xs font-semibold">Medium</p>
+                        </div>
+                        <div class="rounded-lg border border-[var(--border)] p-3">
+                            <p id="count-high" class="text-2xl font-bold">0</p>
+                            <p class="muted text-xs font-semibold">High</p>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="glass p-4" id="terrain-panel">
+                    <h2 class="text-lg font-bold">Terrain & Elevation Info</h2>
+                    <p class="muted mt-1 text-xs">Informasi topografi wilayah terpilih</p>
+                    <div id="terrain-info" class="mt-3 text-sm space-y-2">
+                        <div class="muted text-sm font-semibold">Klik kabupaten untuk melihat detail terrain.</div>
+                    </div>
+                </section>
+
+                <section class="glass p-4">
+                    <h2 class="text-lg font-bold">Province Risk Ranking</h2>
+                    <p class="muted mt-1 text-xs">Provinsi dengan risiko longsor tertinggi</p>
+                    <div id="province-ranking" class="mt-2" aria-live="polite"></div>
+                </section>
+
+                <section class="glass p-4">
+                    <h2 class="text-lg font-bold">Alert Timeline</h2>
+                    <p class="muted mt-1 text-xs">Kabupaten/kota dengan risiko medium/high</p>
+                    <div id="alert-timeline" class="mt-2" aria-live="polite"></div>
+                </section>
+            </aside>
+        </section>
+    </main>
+
+    <script src="config.js" onerror="console.warn('config.js tidak ditemukan — fallback ke /api/env')">
+    </script>
+    <script>
+        const API_BASE_URL = 'https://mfmaull-bentala-nusantara-api.hf.space/api';
+        const ENDPOINTS = {
+            earlyWarning: `${API_BASE_URL}/early-warning/indonesia?forecast_days=3&admin_level=kabupaten&include_geometry=true`,
+            health: `${API_BASE_URL}/noaa/health`,
+            riskComposite: `${API_BASE_URL}/terrain/risk-composite`,
+            riskMetadata: `${API_BASE_URL}/terrain/risk-metadata`,
+        };
+        const MAP_STYLE_BASIC = key => `https://basemap.mapid.io/styles/basic/style.json?key=${key}`;
+        const RISK = {
+            LOW: { value: 1, label: 'Low Risk', color: '#4ade80', className: 'risk-low' },
+            MEDIUM: { value: 2, label: 'Medium Risk', color: '#facc15', className: 'risk-medium' },
+            HIGH: { value: 3, label: 'High Risk', color: '#ef4444', className: 'risk-high' }
+        };
+        const SLOPE_COLORS = { flat: '#86efac', gentle: '#facc15', moderate: '#fb923c', steep: '#ef4444' };
+        const DEFAULT_BOUNDS = [
+            [94, -12],
+            [142, 7]
+        ];
+
+        const state = {
+            map: null,
+            popup: null,
+            payload: null,
+            layerLevel: 'kabupaten',
+            selectedProvince: 'all',
+            selectedKabupaten: 'all',
+            markerFilters: new Set(['HIGH']),
+            hoveredId: null,
+            selectedId: null,
+            sourceReady: false,
+            handlersBound: false,
+            compositeBounds: null,
+            compositeMeta: null,
+            isMetadataReady: false,
+            selectedKabupatenIds: [],
+            lastGeneratedIds: [],
+            isGenerating: false,
+        };
+        let currentController = null;
+
+        const el = {};
+        document.addEventListener('DOMContentLoaded', init);
+
+        async function init() {
+            cacheElements();
+            bindEvents();
+            initTheme();
+            initMap();
+            await loadDashboard();
+            loadRiskMetadata();  // fire-and-forget metadata fetch
+        }
+
+        function cacheElements() {
+            [
+                'theme-toggle', 'refresh-btn', 'source-status', 'status-badge', 'freshness',
+                'national-risk', 'national-risk-note', 'active-hazards', 'high-hazards',
+                'affected-provinces', 'coverage-count', 'last-update-time', 'data-source-label',
+                'warning-map', 'map-loading',
+                'map-message', 'reset-view',
+                'province-filter', 'kabupaten-filter', 'count-low', 'count-medium',
+                'count-high', 'province-ranking', 'alert-timeline',
+                'bmkg-alert-count', 'terrain-risk-count', 'terrain-info',
+                'kabupaten-select', 'selected-count', 'generate-btn',
+            ].forEach(id => el[toCamel(id)] = document.getElementById(id));
+        }
+
+        function toCamel(value) {
+            return value.replace(/-([a-z])/g, (_, char) => char.toUpperCase());
+        }
+
+        function bindEvents() {
+            el.refreshBtn.addEventListener('click', loadDashboard);
+            el.resetView.addEventListener('click', resetView);
+            el.provinceFilter.addEventListener('change', () => {
+                state.selectedProvince = el.provinceFilter.value;
+                state.selectedKabupaten = 'all';
+                populateKabupatenFilter();
+                applyFilters();
+            });
+            el.kabupatenFilter.addEventListener('change', () => {
+                state.selectedKabupaten = el.kabupatenFilter.value;
+                applyFilters();
+            });
+            document.querySelectorAll('.marker-filter').forEach(input => {
+                input.addEventListener('change', () => {
+                    state.markerFilters = new Set([...document.querySelectorAll(
+                        '.marker-filter:checked')].map(item => item.value));
+                    applyMarkerFilter();
+                });
+            });
+            // Terrain control
+            el.kabupatenSelect.addEventListener('change', handleKabupatenSelection);
+            el.generateBtn.addEventListener('click', generateTerrainLayer);
+        }
+
+        function handleKabupatenSelection() {
+            const selected = [...el.kabupatenSelect.selectedOptions].map(o => o.value);
+            if (selected.length > 5) {
+                const last = el.kabupatenSelect.selectedOptions[el.kabupatenSelect.selectedOptions.length - 1];
+                last.selected = false;
+                updateKabupatenCounter();
+                return;
+            }
+            state.selectedKabupatenIds = selected;
+            updateKabupatenCounter();
+        }
+
+        function updateKabupatenCounter() {
+            const count = state.selectedKabupatenIds.length;
+            el.selectedCount.textContent = `${count} / 5 selected`;
+            const idsChanged = JSON.stringify(state.selectedKabupatenIds) !== JSON.stringify(state.lastGeneratedIds);
+            el.generateBtn.disabled = count === 0 || state.isGenerating || (!idsChanged && state.lastGeneratedIds.length > 0);
+            el.generateBtn.textContent = state.isGenerating ? 'Generating...' : 'Generate Layer';
+        }
+
+        function zoomToSelectedKabupaten() {
+            const ids = state.selectedKabupatenIds;
+            if (!ids.length || !state.payload?.kabupaten_layer || !state.map) return;
+            const features = state.payload.kabupaten_layer.features.filter(f => ids.includes(f.properties.admin_id));
+            if (!features.length) return;
+            const b = turf.bbox({ type: 'FeatureCollection', features });
+            state.map.fitBounds([[b[0], b[1]], [b[2], b[3]]], { padding: 42, duration: 700, maxZoom: 9 });
+        }
+
+        function populateKabupatenSelect() {
+            if (!state.payload?.kabupaten_layer) return;
+            el.kabupatenSelect.innerHTML = '';
+            const features = state.payload.kabupaten_layer.features;
+            features
+                .map(f => f.properties)
+                .sort((a, b) => a.admin_name.localeCompare(b.admin_name))
+                .forEach(props => {
+                    const opt = document.createElement('option');
+                    opt.value = props.admin_id;
+                    opt.textContent = `${props.admin_name} (${props.province_name})`;
+                    el.kabupatenSelect.appendChild(opt);
+                });
+        }
+
+        function initTheme() {
+            const html = document.documentElement;
+            function setTheme(theme) {
+                html.setAttribute('data-theme', theme);
+                el.themeToggle.textContent = theme === 'dark' ? 'Light' : 'Dark';
+                localStorage.setItem('bn_theme', theme);
+            }
+            setTheme(localStorage.getItem('bn_theme') || 'light');
+            el.themeToggle.addEventListener('click', () =>
+                setTheme(html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'));
+        }
+
+        function initMap() {
+            const key = window.CONFIG?.MAP_SERVICE_KEY || 'YOUR_MAP_SERVICE_KEY';
+            state.map = new maplibregl.Map({
+                container: 'warning-map',
+                style: MAP_STYLE_BASIC(key),
+                center: [118, -2.5],
+                zoom: 4.1,
+                minZoom: 3.2,
+                maxZoom: 12,
+                attributionControl: true,
+                canvasContextAttributes: { antialias: true }
+            });
+            state.map.addControl(new maplibregl.NavigationControl(), 'top-right');
+            state.map.addControl(new maplibregl.ScaleControl({ unit: 'metric', maxWidth: 150 }), 'bottom-left');
+            state.map.on('load', () => {
+                state.sourceReady = true;
+                addVizLayers();
+                addGeoJSONLayers();
+                updateMapData();
+                applyFilters();
+            });
+            state.map.on('styledata', () => {
+                if (!state.map.isStyleLoaded()) return;
+                addVizLayers();
+                addGeoJSONLayers();
+                updateMapData();
+                applyFilters();
+            });
+            state.map.on('error', event => {
+                console.error(event);
+                setMessage('Basemap gagal dimuat. Periksa koneksi atau API key.', 'error');
+            });
+        }
+
+        function addGeoJSONLayers() {
+            if (!state.map || state.map.getSource('hazards')) return;
+            // GeoJSON outline + markers only (raster is on-demand via generateTerrainLayer)
+            state.map.addSource('hazards', { type: 'geojson', data: emptyCollection(), promoteId: 'admin_id' });
+            state.map.addSource('markers', { type: 'geojson', data: emptyCollection() });
+
+            // Outline layer
+            state.map.addLayer({
+                id: 'hazard-outline',
+                type: 'line',
+                source: 'hazards',
+                paint: {
+                    'line-color': [
+                        'case',
+                        ['boolean', ['feature-state', 'selected'], false], '#0b0b0b',
+                        ['boolean', ['feature-state', 'hover'], false], '#ffffff',
+                        'rgba(11, 11, 11, 0.45)'
+                    ],
+                    'line-width': [
+                        'case',
+                        ['boolean', ['feature-state', 'selected'], false], 2.8,
+                        ['boolean', ['feature-state', 'hover'], false], 2,
+                        0.75
+                    ]
+                }
+            });
+
+            // Marker circles
+            state.map.addLayer({
+                id: 'hazard-markers',
+                type: 'circle',
+                source: 'markers',
+                paint: {
+                    'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 4, 8, 8],
+                    'circle-color': [
+                        'match', ['get', 'risk_level'],
+                        'HIGH', RISK.HIGH.color,
+                        'MEDIUM', RISK.MEDIUM.color,
+                        'LOW', RISK.LOW.color,
+                        '#cbd5e1'
+                    ],
+                    'circle-stroke-color': '#0b0b0b',
+                    'circle-stroke-width': 1.2,
+                    'circle-opacity': 0.86
+                }
+            });
+
+            // NOTE: Raster composite is NOT loaded here — user triggers it via Generate Layer
+
+            if (!state.handlersBound) {
+                state.map.on('mousemove', 'hazard-outline', onHover);
+                state.map.on('mouseleave', 'hazard-outline', clearHover);
+                state.map.on('click', 'hazard-outline', event => {
+                    if (event.features?.[0]) selectFeature(event.features[0], event.lngLat);
+                });
+                state.map.on('click', 'hazard-markers', event => {
+                    if (event.features?.[0]) showMarkerPopup(event.features[0], event.lngLat);
+                });
+                state.handlersBound = true;
+            }
+        }
+
+        async function loadRiskCompositeForIds(kabupatenIds) {
+            if (!state.map) return;
+            // Abort previous request
+            if (currentController) currentController.abort();
+            currentController = new AbortController();
+            const signal = currentController.signal;
+
+            const cacheBust = Date.now();
+            const imageUrl = kabupatenIds.length
+                ? `${ENDPOINTS.riskComposite}?kabupaten_ids=${kabupatenIds.join(',')}&_=${cacheBust}`
+                : `${ENDPOINTS.riskComposite}?_=${cacheBust}`;
+
+            try {
+                const timeout = setTimeout(() => currentController.abort(), 60000);
+                const response = await fetch(imageUrl, { signal });
+                clearTimeout(timeout);
+                currentController = null;
+
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+                // Validate content-type
+                const ct = response.headers.get('content-type') || '';
+                if (!ct.includes('image/png') && !ct.includes('image/')) {
+                    console.warn('[NOAA] Unexpected content-type:', ct);
+                }
+
+                // Parse X-Bounds with graceful fallback
+                const boundsHeader = response.headers.get('X-Bounds');
+                let coordParts;
+                if (boundsHeader) {
+                    const p = boundsHeader.split(',').map(Number);
+                    if (p.length === 4 && !p.some(isNaN)) {
+                        coordParts = p;
+                    }
+                }
+                // Fallback to Indonesia bounds if header missing
+                if (!coordParts) {
+                    console.warn('[NOAA] X-Bounds missing or invalid, using Indonesia fallback');
+                    coordParts = [95, -11, 141, 6];
+                }
+
+                // MapLibre coords: [west,south], [east,south], [east,north], [west,north]
+                const coords = [
+                    [coordParts[0], coordParts[3]],
+                    [coordParts[2], coordParts[3]],
+                    [coordParts[2], coordParts[1]],
+                    [coordParts[0], coordParts[1]]
+                ];
+                console.log('[NOAA] Bounds:', coordParts, '→ Coords:', JSON.stringify(coords));
+                state.compositeBounds = coordParts;
+
+                const blob = await response.blob();
+                if (!blob.size) throw new Error('Empty image blob');
+                console.log('[NOAA] Image size:', blob.size, 'bytes');
+
+                const blobUrl = URL.createObjectURL(blob);
+
+                // Remove old source/layer
+                if (state.map.getLayer('risk-composite-layer')) state.map.removeLayer('risk-composite-layer');
+                if (state.map.getSource('risk-composite-source')) state.map.removeSource('risk-composite-source');
+                if (state._lastBlobUrl) { URL.revokeObjectURL(state._lastBlobUrl); }
+                state._lastBlobUrl = blobUrl;
+
+                state.map.addSource('risk-composite-source', {
+                    type: 'image',
+                    url: blobUrl,
+                    coordinates: coords
+                });
+                state.map.addLayer({
+                    id: 'risk-composite-layer',
+                    type: 'raster',
+                    source: 'risk-composite-source',
+                    paint: { 'raster-opacity': 0.85 }
+                }, 'hazard-outline');
+
+                console.log('[NOAA] Risk composite layer added, image size:', blob.size);
+            } catch (err) {
+                if (err.name === 'AbortError') return;
+                console.warn('[NOAA] Risk composite failed:', err.message);
+                throw err;
+            } finally {
+                if (currentController) currentController = null;
+            }
+        }
+
+        let _generateDebounceTimer = null;
+
+        async function generateTerrainLayer() {
+            // Debounce: prevent double clicks within 300ms
+            if (_generateDebounceTimer) return;
+            _generateDebounceTimer = setTimeout(() => { _generateDebounceTimer = null; }, 300);
+
+            if (state.isGenerating) return;
+            const ids = state.selectedKabupatenIds;
+            if (!ids.length) {
+                setMessage('Pilih minimal 1 kabupaten terlebih dahulu.', 'error');
+                return;
+            }
+            if (ids.length > 5) {
+                setMessage('Maksimal 5 kabupaten.', 'error');
+                return;
+            }
+
+            state.isGenerating = true;
+            updateKabupatenCounter();
+            setLoading(true);
+            setMessage('Menggenerate terrain layer...', 'loading');
+            try {
+                await loadRiskCompositeForIds(ids);
+                // Also fetch metadata for this selection
+                const metaUrl = ids.length
+                    ? `${ENDPOINTS.riskMetadata}?kabupaten_ids=${ids.join(',')}`
+                    : ENDPOINTS.riskMetadata;
+                const meta = await fetchJson(metaUrl);
+                if (meta && meta.generated_at) {
+                    state.compositeMeta = meta;
+                    state.isMetadataReady = true;
+                }
+                state.lastGeneratedIds = [...ids];
+                zoomToSelectedKabupaten();
+                updateKabupatenCounter();
+                setMessage('✅ Layer berhasil ditampilkan.', 'success');
+            } catch (err) {
+                if (err.name === 'AbortError') {
+                    console.log('[NOAA] Generate dibatalkan oleh user.');
+                    return;
+                }
+                setMessage('Gagal generate terrain layer.', 'error');
+            } finally {
+                state.isGenerating = false;
+                updateKabupatenCounter();
+                setLoading(false);
+            }
+        }
+
+        function addVizLayers() {
+            // No-op: composite raster is the single visual layer
+        }
+
+        async function loadRiskComposite() {
+            if (!state.map || state.map.getSource('risk-composite-source')) return;
+            try {
+                const controller = new AbortController();
+                const timeout = setTimeout(() => controller.abort(), 30000);
+                const response = await fetch(ENDPOINTS.riskComposite, { signal: controller.signal });
+                clearTimeout(timeout);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+                const boundsHeader = response.headers.get('X-Bounds');
+                if (boundsHeader) {
+                    const parts = boundsHeader.split(',').map(Number);
+                    if (parts.length === 4) {
+                        state.compositeBounds = parts;
+                        const coords = [
+                            [parts[0], parts[1]],  // west, north
+                            [parts[2], parts[1]],  // east, north
+                            [parts[2], parts[3]],  // east, south
+                            [parts[0], parts[3]]   // west, south
+                        ];
+                        state.map.addSource('risk-composite-source', {
+                            type: 'image',
+                            url: ENDPOINTS.riskComposite,
+                            coordinates: coords
+                        });
+                        state.map.addLayer({
+                            id: 'risk-composite-layer',
+                            type: 'raster',
+                            source: 'risk-composite-source',
+                            paint: { 'raster-opacity': 1.0 }
+                        }, 'hazard-outline');
+                    }
+                }
+            } catch (err) {
+                console.warn('Risk composite not available:', err);
+            }
+        }
+
+        async function loadRiskMetadata() {
+            try {
+                const meta = await fetchJson(ENDPOINTS.riskMetadata);
+                if (meta && meta.generated_at) {
+                    state.compositeMeta = meta;
+                    state.isMetadataReady = true;
+                }
+            } catch (err) {
+                console.warn('Risk metadata not available:', err);
+            }
+        }
+
+        async function loadDashboard() {
+            setLoading(true);
+            setMessage('Mengambil data hazard dari backend.', 'loading');
+            try {
+                const [health, payload] = await Promise.allSettled([
+                    fetchJson(ENDPOINTS.health),
+                    fetchJson(ENDPOINTS.earlyWarning)
+                ]);
+                state.payload = payload.status === 'fulfilled' ? payload.value : null;
+                renderHealth(health.status === 'fulfilled' ? health.value : null);
+                if (!state.payload) throw payload.reason || new Error('Backend tidak mengembalikan data.');
+                renderDashboard();
+                populateProvinceFilter();
+                populateKabupatenFilter();
+                updateMapData();
+                applyFilters();
+                setMessage('Data siap. Klik polygon untuk detail.', 'success');
+            } catch (error) {
+                console.error(error);
+                renderError(error);
+                setMessage('Data hazard belum tersedia dari backend.', 'error');
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        async function fetchJson(url) {
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 30000);
+            try {
+                const response = await fetch(url, { signal: controller.signal });
+                clearTimeout(timeout);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                return await response.json();
+            } catch (err) {
+                clearTimeout(timeout);
+                if (err.name === 'AbortError') {
+                    throw new DOMException('Aborted', 'AbortError');
+                }
+                throw err;
+            }
+        }
+
+        function updateMapData() {
+            if (!state.payload || !state.map?.getSource('hazards')) return;
+            const collection = state.layerLevel === 'province' ?
+                state.payload.province_layer :
+                state.payload.kabupaten_layer;
+            state.map.getSource('hazards').setData(collection || emptyCollection());
+            state.map.getSource('markers').setData(buildMarkerCollection());
+        }
+
+        function applyFilters() {
+            applyOutlineFilter();
+            applyMarkerFilter();
+            fitFilteredView();
+        }
+
+        function applyOutlineFilter() {
+            if (!state.map?.getLayer('hazard-outline')) return;
+            const filters = ['all'];
+            if (state.selectedProvince !== 'all')
+                filters.push(['==', ['get', 'province_id'], state.selectedProvince]);
+            if (state.selectedKabupaten !== 'all' && state.layerLevel === 'kabupaten')
+                filters.push(['==', ['get', 'admin_id'], state.selectedKabupaten]);
+            state.map.setFilter('hazard-outline', filters.length === 1 ? null : filters);
+        }
+
+        function applyMarkerFilter() {
+            if (!state.map?.getLayer('hazard-markers')) return;
+            const enabled = [...state.markerFilters];
+            const filters = ['all', ['in', ['get', 'risk_level'], ['literal', enabled]]];
+            if (state.selectedProvince !== 'all')
+                filters.push(['==', ['get', 'province_id'], state.selectedProvince]);
+            if (state.selectedKabupaten !== 'all')
+                filters.push(['==', ['get', 'admin_id'], state.selectedKabupaten]);
+            state.map.setFilter('hazard-markers', enabled.length ? filters : ['==', ['get', 'risk_level', '__none__']]);
+        }
+
+        function buildMarkerCollection() {
+            if (!state.payload?.markers) return emptyCollection();
+            return {
+                type: 'FeatureCollection',
+                features: state.payload.markers.map(marker => ({
+                    type: 'Feature',
+                    geometry: { type: 'Point', coordinates: [marker.lon, marker.lat] },
+                    properties: marker
+                }))
+            };
+        }
+
+        function populateProvinceFilter() {
+            if (!state.payload?.province_layer) return;
+            const current = state.selectedProvince;
+            el.provinceFilter.innerHTML = '<option value="all">Seluruh Indonesia</option>';
+            state.payload.province_layer.features
+                .map(feature => feature.properties)
+                .sort((a, b) => a.province_name.localeCompare(b.province_name))
+                .forEach(props => {
+                    const option = document.createElement('option');
+                    option.value = props.province_id;
+                    option.textContent = props.province_name;
+                    el.provinceFilter.appendChild(option);
+                });
+            el.provinceFilter.value = current;
+        }
+
+        function populateKabupatenFilter() {
+            el.kabupatenFilter.innerHTML = '';
+            if (state.selectedProvince === 'all' || !state.payload?.kabupaten_layer) {
+                el.kabupatenFilter.disabled = true;
+                el.kabupatenFilter.innerHTML = '<option value="all">Pilih provinsi terlebih dahulu</option>';
+                return;
+            }
+            el.kabupatenFilter.disabled = false;
+            el.kabupatenFilter.innerHTML = '<option value="all">Semua kabupaten/kota</option>';
+            state.payload.kabupaten_layer.features
+                .filter(feature => feature.properties.province_id === state.selectedProvince)
+                .map(feature => feature.properties)
+                .sort((a, b) => a.admin_name.localeCompare(b.admin_name))
+                .forEach(props => {
+                    const option = document.createElement('option');
+                    option.value = props.admin_id;
+                    option.textContent = props.admin_name;
+                    el.kabupatenFilter.appendChild(option);
+                });
+            el.kabupatenFilter.value = state.selectedKabupaten;
+        }
+
+        function renderDashboard() {
+            const summary = state.payload.summary;
+            const risk = RISK[summary.overall_risk_level] || RISK.LOW;
+            el.nationalRisk.textContent = risk.label;
+            el.nationalRiskNote.textContent = summary.high_hazard_count ?
+                `${summary.high_hazard_count} kabupaten/kota berada pada risiko tinggi.` :
+                'Tidak ada risiko tinggi dari wilayah yang terpantau.';
+            el.activeHazards.textContent = formatNumber(summary.active_hazard_count);
+            el.highHazards.textContent = formatNumber(summary.high_hazard_count);
+            el.affectedProvinces.textContent = formatNumber(summary.affected_province_count);
+            el.coverageCount.textContent = formatNumber(summary.monitored_kabupaten_count);
+            el.bmkgAlertCount.textContent = formatNumber(summary.bmkg_alert_count || 0);
+            el.terrainRiskCount.textContent = formatNumber(summary.terrain_high_risk_count || 0);
+            el.countLow.textContent = formatNumber(summary.risk_counts.LOW);
+            el.countMedium.textContent = formatNumber(summary.risk_counts.MEDIUM);
+            el.countHigh.textContent = formatNumber(summary.risk_counts.HIGH);
+            el.statusBadge.className = `risk-badge ${risk.className}`;
+            el.statusBadge.textContent = risk.label;
+            el.freshness.textContent =
+                `Diperbarui ${formatDate(state.payload.fetched_at)}. ${state.payload.source?.provider || 'Forecast API'}.`;
+            if (el.lastUpdateTime) el.lastUpdateTime.textContent = formatDate(state.payload.fetched_at);
+            if (el.dataSourceLabel) el.dataSourceLabel.textContent = state.payload.source?.provider || 'Forecast API';
+            populateKabupatenSelect();
+            updateKabupatenCounter();
+            renderRanking();
+            renderTimeline();
+            renderTerrainInfo(null);
+        }
+
+        function renderHealth(data) {
+            el.sourceStatus.textContent = data?.status === 'ok' ? 'NOAA/Open-Meteo aktif' :
+                data?.status === 'degraded' ? 'Sumber data degradasi' : 'Status sumber tidak tersedia';
+        }
+
+        function renderRanking() {
+            const rows = state.payload.summary.province_ranking || [];
+            if (!rows.length) { renderEmpty(el.provinceRanking, 'Belum ada ranking provinsi.'); return; }
+            el.provinceRanking.innerHTML = rows.slice(0, 7).map(row => {
+                const elev = row.elevation_m ? `${formatNumber(row.elevation_m)} m` : '-';
+                const slope = row.slope_class || 'flat';
+                const slopeColor = SLOPE_COLORS[slope] || '#cbd5e1';
+                return `<button class="list-row focus-ring" type="button" data-province="${escapeAttr(row.province_id)}">
+                  <span><span class="block font-semibold">${escapeHtml(row.province_name)}</span>
+                  <span class="muted block text-xs">${row.hazard_count} hazard · ${elev} · <span class="slope-indicator" style="background:${slopeColor}"></span>${slope}</span></span>
+                  <span class="risk-badge ${riskClass(row.risk_level)}">${escapeHtml(row.risk_level)}</span></button>`;
+            }).join('');
+            el.provinceRanking.querySelectorAll('[data-province]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    state.selectedProvince = btn.dataset.province;
+                    el.provinceFilter.value = state.selectedProvince;
+                    populateKabupatenFilter();
+                    applyFilters();
+                });
+            });
+        }
+
+        function renderTimeline() {
+            const markers = [...(state.payload.markers || [])]
+                .filter(m => m.risk_level !== 'LOW')
+                .sort((a, b) => b.risk_level_numeric - a.risk_level_numeric || b.risk_score - a.risk_score)
+                .slice(0, 7);
+            if (!markers.length) { renderEmpty(el.alertTimeline, 'Tidak ada alert medium/high saat ini.'); return; }
+            el.alertTimeline.innerHTML = markers.map(m => {
+                const e = m.elevation_m ? ` · ${formatNumber(m.elevation_m)} m` : '';
+                const bi = m.bmkg_alert_active ? '📢 ' : '';
+                const ci = (m.cape_max || 0) >= 500 ? ` · CAPE ${formatNumber(m.cape_max)} J/kg` : '';
+                const sc = m.slope_class || 'flat';
+                const scC = SLOPE_COLORS[sc] || '#cbd5e1';
+                return `<button class="list-row focus-ring" type="button" data-admin="${escapeAttr(m.id)}">
+                  <span><span class="block font-semibold">${bi}${escapeHtml(m.name)}</span>
+                  <span class="muted block text-xs">${escapeHtml(m.province_name)} · hujan ${formatNumber(m.rainfall_3day_mm)} mm${ci}${e}</span>
+                  <span class="muted block text-xs"><span class="slope-indicator" style="background:${scC}"></span>${sc}</span></span>
+                  <span class="risk-badge ${riskClass(m.risk_level)}">${escapeHtml(m.risk_level)}</span></button>`;
+            }).join('');
+            el.alertTimeline.querySelectorAll('[data-admin]').forEach(btn => {
+                btn.addEventListener('click', () => focusKabupaten(btn.dataset.admin));
+            });
+        }
+
+        function renderTerrainInfo(props) {
+            if (!props) {
+                el.terrainInfo.innerHTML = `<div class="muted text-sm font-semibold">Klik kabupaten untuk melihat detail terrain.</div>
+                  <div class="mt-3 grid grid-cols-2 gap-2 text-sm">
+                    <div class="rounded-lg border border-[var(--border)] p-2 text-center"><p class="text-lg font-bold">-</p><p class="muted text-xs">Elevasi</p></div>
+                    <div class="rounded-lg border border-[var(--border)] p-2 text-center"><p class="text-lg font-bold">-</p><p class="muted text-xs">Lereng</p></div>
+                    <div class="rounded-lg border border-[var(--border)] p-2 text-center"><p class="text-lg font-bold">-</p><p class="muted text-xs">Kerawanan</p></div>
+                    <div class="rounded-lg border border-[var(--border)] p-2 text-center"><p class="text-lg font-bold">-</p><p class="muted text-xs">Weight</p></div>
+                  </div>`;
+                return;
+            }
+            const elev = props.elevation_m ? `${formatNumber(props.elevation_m)} m` : '-';
+            const slopeDeg = props.slope_deg ? `${formatNumber(props.slope_deg)}°` : '-';
+            const slopeClass = props.slope_class || 'flat';
+            const slopeColor = SLOPE_COLORS[slopeClass] || '#cbd5e1';
+            const bnpbClass = props.bnpb_susceptibility_class || 'medium';
+            const bnpbColor = bnpbClass === 'high' ? '#ef4444' : bnpbClass === 'medium' ? '#facc15' : '#4ade80';
+            const terrainWeight = props.terrain_weight || 1.0;
+            const bmkgActive = props.bmkg_alert_active ? '✅ Aktif' : '❌ Tidak aktif';
+            el.terrainInfo.innerHTML = `<div class="space-y-1">
+              <div class="flex justify-between"><span class="font-semibold">🏔️ Elevasi</span><span>${elev}</span></div>
+              <div class="flex justify-between"><span class="font-semibold">📐 Lereng</span><span><span class="slope-indicator" style="background:${slopeColor}"></span>${slopeDeg} (${slopeClass})</span></div>
+              <div class="flex justify-between"><span class="font-semibold">⚠️ Kerawanan BNPB</span><span style="color:${bnpbColor};font-weight:700">${bnpbClass.toUpperCase()}</span></div>
+              <div class="flex justify-between"><span class="font-semibold">⚖️ Terrain Weight</span><span>${terrainWeight.toFixed(2)}x</span></div>
+              <div class="flex justify-between"><span class="font-semibold">📢 BMKG Alert</span><span>${bmkgActive}</span></div>
+            </div>
+            <div class="mt-3 grid grid-cols-2 gap-2 text-sm">
+              <div class="rounded-lg border border-[var(--border)] p-2 text-center"><p class="text-lg font-bold">${elev}</p><p class="muted text-xs">Elevasi</p></div>
+              <div class="rounded-lg border border-[var(--border)] p-2 text-center"><p class="text-lg font-bold">${slopeDeg}</p><p class="muted text-xs">Lereng</p></div>
+              <div class="rounded-lg border border-[var(--border)] p-2 text-center"><p class="text-lg font-bold" style="color:${bnpbColor}">${bnpbClass.toUpperCase()}</p><p class="muted text-xs">Kerawanan</p></div>
+              <div class="rounded-lg border border-[var(--border)] p-2 text-center"><p class="text-lg font-bold">${terrainWeight.toFixed(2)}x</p><p class="muted text-xs">Weight</p></div>
+            </div>`;
+        }
+
+        function renderError(error) {
+            el.sourceStatus.textContent = 'Backend tidak tersedia';
+            el.nationalRisk.textContent = '-';
+            el.nationalRiskNote.textContent = error.message || 'Gagal memuat data hazard.';
+            ['activeHazards', 'highHazards', 'affectedProvinces', 'coverageCount',
+                'countLow', 'countMedium', 'countHigh', 'bmkgAlertCount', 'terrainRiskCount'
+            ].forEach(key => el[key]?.textContent && (el[key].textContent = '0'));
+            if (el.lastUpdateTime) el.lastUpdateTime.textContent = '-';
+            if (el.dataSourceLabel) el.dataSourceLabel.textContent = 'Sumber data';
+            renderEmpty(el.provinceRanking, 'Ranking belum tersedia.');
+            renderEmpty(el.alertTimeline, 'Timeline belum tersedia.');
+            renderTerrainInfo(null);
+        }
+
+        function onHover(event) {
+            const feature = event.features?.[0];
+            if (!feature) return;
+            state.map.getCanvas().style.cursor = 'pointer';
+            const id = feature.properties.admin_id;
+            if (state.hoveredId && state.hoveredId !== id)
+                state.map.setFeatureState({ source: 'hazards', id: state.hoveredId }, { hover: false });
+            state.hoveredId = id;
+            state.map.setFeatureState({ source: 'hazards', id }, { hover: true });
+        }
+
+        function clearHover() {
+            state.map.getCanvas().style.cursor = '';
+            if (state.hoveredId)
+                state.map.setFeatureState({ source: 'hazards', id: state.hoveredId }, { hover: false });
+            state.hoveredId = null;
+        }
+
+        function selectFeature(feature, lngLat) {
+            clearSelected();
+            if (!state.isMetadataReady) {
+                console.warn('[NOAA] Metadata not ready yet, popup may lack composite region data');
+            }
+            const id = feature.properties.admin_id;
+            state.selectedId = id;
+            state.selectedFeature = feature;
+            state.map.setFeatureState({ source: 'hazards', id }, { selected: true });
+            showAreaPopup(feature, lngLat);
+            renderTerrainInfo(feature.properties);
+        }
+
+        function clearSelected() {
+            if (state.selectedId && state.map?.getSource('hazards'))
+                state.map.setFeatureState({ source: 'hazards', id: state.selectedId }, { selected: false });
+            state.selectedId = null;
+            state.selectedFeature = null;
+            if (state.popup) { state.popup.remove(); state.popup = null; }
+        }
+
+        function showAreaPopup(feature, lngLat) {
+            showPopup(lngLat, feature.properties.admin_name || feature.properties.province_name, feature.properties.province_name, feature.properties);
+        }
+
+        function showMarkerPopup(feature, lngLat) {
+            showPopup(lngLat, feature.properties.name, feature.properties.province_name, feature.properties);
+        }
+
+        function showPopup(lngLat, title, subtitle, props) {
+            if (state.popup) { state.popup.remove(); state.popup = null; }
+            const elev = props.elevation_m ? `${formatNumber(props.elevation_m)} m` : '-';
+            const sc = props.slope_class || 'flat';
+            const scC = SLOPE_COLORS[sc] || '#cbd5e1';
+            const bc = props.bnpb_susceptibility_class || 'medium';
+            const bC = bc === 'high' ? '#ef4444' : bc === 'medium' ? '#facc15' : '#4ade80';
+            const ba = props.bmkg_alert_active ? '✅ Aktif (+1.5)' : '❌ Tidak aktif';
+            const cv = (props.cape_max || 0) >= 500 ? `${formatNumber(props.cape_max)} J/kg` : '-';
+            const sd = props.slope_deg ? `${formatNumber(props.slope_deg)}°` : '-';
+            const tw = props.terrain_weight || 1.0;
+            const popupContent = document.createElement('div');
+            popupContent.innerHTML = `<article class="popup-card">
+              <header><button class="popup-close-btn">&times;</button>
+              <div class="text-xs uppercase tracking-widest pr-7">${escapeHtml(subtitle || '-')}</div>
+              <h3 class="mt-1 text-base font-bold pr-7">${escapeHtml(title || '-')}</h3>
+              <div class="terrain-stats mt-1"><span>🏔️ ${elev}</span><span>📐 <span class="slope-indicator" style="background:${scC}"></span>${sd}</span>
+              <span style="color:${bC};font-weight:600">⚠️ ${bc.toUpperCase()}</span><span>⚖️ ${tw.toFixed(2)}x</span></div></header>
+              <dl>
+              <dt>🌧️ Risiko</dt><dd><span class="risk-label-inline ${riskClass(props.risk_level)}">${escapeHtml(props.risk_level || '-')}</span></dd>
+              <dt>📊 Skor</dt><dd>${formatNumber(props.risk_score || 0)}</dd>
+              <dt>💧 Soil Dangkal</dt><dd>${formatNumber(props.soil_moisture_max_3d || 0)}</dd>
+              <dt>💧 Soil Lap. Tengah</dt><dd>${formatNumber(props.soil_moisture_mid_max_3d || 0)}</dd>
+              <dt>🌧️ Hujan 3 hari</dt><dd>${formatNumber(props.rainfall_3day_mm || 0)} mm</dd>
+              <dt>⚡ CAPE</dt><dd>${cv}</dd>
+              <dt>🌊 GloFAS</dt><dd>${props.glofas_flood_prob != null ? (props.glofas_flood_prob * 100).toFixed(0) + '%' : '-'}</dd>
+              <dt>📢 BMKG Alert</dt><dd>${ba}</dd>
+              <dt class="popup-divider"></dt>
+              <dt>📝 Rekomendasi</dt><dd class="text-xs font-normal">${escapeHtml(props.recommendation || '-')}</dd></dl></article>`;
+            state.popup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, maxWidth: '440px', offset: 14 })
+                .setLngLat(lngLat).setDOMContent(popupContent).addTo(state.map);
+            popupContent.querySelector('.popup-close-btn')?.addEventListener('click', (e) => { e.stopPropagation(); clearSelected(); renderTerrainInfo(null); });
+        }
+
+        function focusKabupaten(adminId) {
+            if (!state.payload?.kabupaten_layer) return;
+            const feature = state.payload.kabupaten_layer.features.find(f => f.properties.admin_id === adminId);
+            if (!feature) return;
+            state.layerLevel = 'kabupaten';
+            state.selectedProvince = feature.properties.province_id;
+            state.selectedKabupaten = adminId;
+            el.provinceFilter.value = state.selectedProvince;
+            populateKabupatenFilter();
+            updateMapData();
+            applyFilters();
+            const centroid = turf.centroid(feature);
+            selectFeature(feature, centroid.geometry.coordinates);
+        }
+
+        function fitFilteredView() {
+            if (!state.payload || !state.map) return;
+            const coll = state.layerLevel === 'province' ? state.payload.province_layer : state.payload.kabupaten_layer;
+            let features = coll?.features || [];
+            if (state.selectedProvince !== 'all')
+                features = features.filter(f => f.properties.province_id === state.selectedProvince);
+            if (state.selectedKabupaten !== 'all' && state.layerLevel === 'kabupaten')
+                features = features.filter(f => f.properties.admin_id === state.selectedKabupaten);
+            if (!features.length) return;
+            const b = turf.bbox({ type: 'FeatureCollection', features });
+            state.map.fitBounds([[b[0], b[1]], [b[2], b[3]]], { padding: 42, duration: 700, maxZoom: 8.5 });
+        }
+
+        function resetView() {
+            state.selectedProvince = 'all'; state.selectedKabupaten = 'all';
+            el.provinceFilter.value = 'all'; populateKabupatenFilter();
+            applyOutlineFilter(); applyMarkerFilter();
+            clearSelected(); renderTerrainInfo(null);
+            state.map.fitBounds(DEFAULT_BOUNDS, { padding: 30, duration: 700 });
+        }
+
+        function setLoading(l) { el.mapLoading.style.display = l ? 'flex' : 'none'; el.refreshBtn.disabled = l; el.refreshBtn.style.opacity = l ? '.65' : '1'; }
+        function setMessage(m, mode) { el.mapMessage.className = `mt-1 text-sm ${({loading:'muted',success:'text-green-700',error:'text-red-700'})[mode]||'muted'}`; el.mapMessage.textContent = m; }
+        function riskClass(l) { return RISK[l]?.className || 'risk-unknown'; }
+        function renderEmpty(t, txt) { t.innerHTML = `<div class="muted rounded-lg border border-[var(--border)] p-3 text-sm font-semibold">${escapeHtml(txt)}</div>`; }
+        function emptyCollection() { return { type: 'FeatureCollection', features: [] }; }
+        function formatDate(v) { return v ? new Intl.DateTimeFormat('id-ID', { dateStyle:'medium', timeStyle:'short', timeZone:'Asia/Jakarta' }).format(new Date(v)) : '-'; }
+        function formatNumber(v) { return new Intl.NumberFormat('id-ID', { maximumFractionDigits: 1 }).format(Number(v || 0)); }
+        function escapeHtml(v) { var e = String(v ?? ''), m = { '&':'&','<':'<','>':'>','"':'"',"'":'&#039;' }; return e.replace(/[&<>"']/g, c => m[c]); }
+        function escapeAttr(v) { return escapeHtml(v).replace(/`/g, '&#096;'); }
+    </script>
+</body>
+
+</html>
